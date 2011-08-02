@@ -37,6 +37,7 @@ def configure(conf):
   
   # SAP NW RFC SDK
   result = conf.check(lib='sapnwrfc',
+                      header_name="sapnwrfc.h",
                       includes = sapnwrfcsdk_includes,
                       libpath = sapnwrfcsdk_libpath,
                       uselib_store = 'NWRFCSDK')
