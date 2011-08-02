@@ -1,0 +1,13 @@
+{
+    "name": "sapnwrfc"
+  , "version": "0.1.0"
+  , "description": "Bindings for the SAP NetWeaver RFC SDK"
+  , "homepage": ""
+  , "keywords": ["sapnwrfc", "sap", "rfc" ]
+  , "author": "Joachim Dorner <j.dorner@gmx.net>"
+  , "main": "sapnwrfc"
+  , "engines": { "node": ">= 0.4.0" }
+  , "scripts": {
+      "preinstall": "node-waf configure clean build install --sapnwrfcsdk=${SAPNWRFCSDK}"
+  }
+}
