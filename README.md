@@ -27,7 +27,7 @@ _Note:_ In order to use this module you will have to obtain the SAP NW RFC SDK v
 
     export SAPNWRFCSDK=/home/<user>/node_test/nwrfcsdk
 
-* Then you may download the addon from the [npm registry] [http://search.npmjs.org], build and install it by using the `npm` command. 
+* Then you may download the addon from the [npm registry](http://search.npmjs.org), build and install it by using the `npm` command. 
 
     npm install sapnwrfc
 
@@ -63,7 +63,7 @@ var sapnwrfc = require('sapnwrfc');
 ## Connection paramters
 
 Connection parameters have to be specified using a JavaScript object. For a complete list of possible paramters, refer to the
-_SAP NetWeaver RFC SDK Guide_ which is available via [SAP Connectors] [http://service.sap.com/connectors].
+_SAP NetWeaver RFC SDK Guide_ which is available via [SAP Connectors](http://service.sap.com/connectors).
 
 Example:
 
