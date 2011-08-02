@@ -66,7 +66,7 @@ As with all other Node.js modules, you need to require it:
 var sapnwrfc = require('sapnwrfc');
 ```
 
-## Connection paramters
+## Connection parameters
 
 Connection parameters have to be specified using a JavaScript object. For a complete list of possible paramters, refer to the
 _SAP NetWeaver RFC SDK Guide_ which is available via [SAP Connectors](http://service.sap.com/connectors).
