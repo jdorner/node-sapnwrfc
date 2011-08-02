@@ -14,10 +14,12 @@ Opening the connection and function invocations are fully/partially asynchronous
 - Extract the SDK archive with SAPCAR
 - Copy the files from the lib and include folders to the corresponding system directories (/usr/local/Lib /usr/local/include)
 
-      ./SAPCAR_3-20002089.EXE -xf NWRFC_8-20004549.SAR
-      cd nwrfcsdk
-      cp ./lib/* /usr/local/lib
-      cp ./include/* /usr/local/inlude
+```sh
+./SAPCAR_3-20002089.EXE -xf NWRFC_8-20004549.SAR
+cd nwrfcsdk
+cp ./lib/* /usr/local/lib
+cp ./include/* /usr/local/inlude
+```
 
 ### Option 2 (local installation to module folder)
 
@@ -25,11 +27,15 @@ Opening the connection and function invocations are fully/partially asynchronous
 - Before executing `npm` you have will to set an environment variable that points to the SDK's root folder.
   E.g.:
 
-      export SAPNWRFCSDK=/home/<user>/node_test/nwrfcsdk
+```sh
+export SAPNWRFCSDK=/home/<user>/node_test/nwrfcsdk
+```
 
 - Then you may download the addon from the [npm registry](http://search.npmjs.org), build and install it by using the `npm` command. 
 
-      npm install sapnwrfc
+```sh
+npm install sapnwrfc
+```
 
   The contents of the NW RFC SDK will be copied into the newly created directory within the `node_modules` folder. The linker will look in this place when
   trying to load the shared libraries at runtime.
@@ -60,7 +66,7 @@ As with all other Node.js modules, you need to require it:
 var sapnwrfc = require('sapnwrfc');
 ```
 
-## Connection paramters
+## Connection parameters
 
 Connection parameters have to be specified using a JavaScript object. For a complete list of possible paramters, refer to the
 _SAP NetWeaver RFC SDK Guide_ which is available via [SAP Connectors](http://service.sap.com/connectors).
