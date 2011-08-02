@@ -7,29 +7,29 @@ Opening the connection and function invocations are fully/partially asynchronous
 
 ## Installation
 
-_Note:_ In order to use this module you will have to obtain the SAP NW RFC SDK via http://service.sap.com. For further instructions see OSS note 1025361.
+**Note:** In order to use this module you will have to obtain the SAP NW RFC SDK via http://service.sap.com. For further instructions see OSS note 1025361.
 
 ### Option 1 (needs root privileges or write permissions to system directories)
 
-* Extract the SDK archive with SAPCAR
-* Copy the files from the lib and include folders to the corresponding system directories (/usr/local/Lib /usr/local/include)
+- Extract the SDK archive with SAPCAR
+- Copy the files from the lib and include folders to the corresponding system directories (/usr/local/Lib /usr/local/include)
 
-    ./SAPCAR_3-20002089.EXE -xf NWRFC_8-20004549.SAR
-    cd nwrfcsdk
-    cp ./lib/* /usr/local/lib
-    cp ./include/* /usr/local/inlude
+      ./SAPCAR_3-20002089.EXE -xf NWRFC_8-20004549.SAR
+      cd nwrfcsdk
+      cp ./lib/* /usr/local/lib
+      cp ./include/* /usr/local/inlude
 
 ### Option 2 (local installation to module folder)
 
-* Extract the SDK archive with SAPCAR
-* Before executing `npm` you have will to set an environment variable that points to the SDK's root folder.
+- Extract the SDK archive with SAPCAR
+- Before executing `npm` you have will to set an environment variable that points to the SDK's root folder.
   E.g.:
 
-    export SAPNWRFCSDK=/home/<user>/node_test/nwrfcsdk
+      export SAPNWRFCSDK=/home/<user>/node_test/nwrfcsdk
 
-* Then you may download the addon from the [npm registry](http://search.npmjs.org), build and install it by using the `npm` command. 
+- Then you may download the addon from the [npm registry](http://search.npmjs.org), build and install it by using the `npm` command. 
 
-    npm install sapnwrfc
+      npm install sapnwrfc
 
   The contents of the NW RFC SDK will be copied into the newly created directory within the `node_modules` folder. The linker will look in this place when
   trying to load the shared libraries at runtime.
@@ -86,12 +86,12 @@ Before you can invoke a remote function, you will have to open a connection to t
 
     Connection.Open( connectionParameters, callback( errorObject ) )
 
-- *connectionParameters:* JavaScript object containing the parameters used for connecting to a SAP system (see above)
-- *callback:* A function to be executed after the connection has been attempted. In case of an error, an errorObject will be passed as an argument.
+- **connectionParameters:** JavaScript object containing the parameters used for connecting to a SAP system (see above)
+- **callback:** A function to be executed after the connection has been attempted. In case of an error, an errorObject will be passed as an argument.
 
     versionInfo = Connection.GetVersion( )
 
-- *versionInfo:* An Array containing major number, minor number and patch level of the NW RFC SDK
+- **versionInfo:** An Array containing major number, minor number and patch level of the NW RFC SDK
 
 Example:
 
@@ -118,13 +118,13 @@ However, you can this the Function object subsequently multiple times for invoca
 
     functionObject = Connection.Lookup( functionModuleName )
 
-- *functionModuleName:* A string containing the name of the remote function module to be called
-- *functionObject:* A JavaScript object (class name: Function) which represents an interface to invoke the function
+- **functionModuleName:** A string containing the name of the remote function module to be called
+- **functionObject:** A JavaScript object (class name: Function) which represents an interface to invoke the function
 
     Function.Invoke( functionParameters, callback( errorObject, result ) )
 
-- *functionParameters:* JavaScript object containing the parameters used for connecting to a SAP system (see above)
-- *callback:* A function to be executed after the connection has been attempted. In case of an error, an errorObject will be passed as an argument. The result will be return as a JavaScriptObject (see below for details)
+- **functionParameters:** JavaScript object containing the parameters used for connecting to a SAP system (see above)
+- **callback:** A function to be executed after the connection has been attempted. In case of an error, an errorObject will be passed as an argument. The result will be return as a JavaScriptObject (see below for details)
 
 For the sake of simplicity, the following example will neither pass arguments to the remote function nor receive a result:
 
