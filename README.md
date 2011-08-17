@@ -89,13 +89,16 @@ var conParams = {
 
 Before you can invoke a remote function, you will have to open a connection to the SAP system.
 
-
-    Connection.Open( connectionParameters, callback( errorObject ) )
+```js
+Connection.Open( connectionParameters, callback( errorObject ) )
+```
 
 - **connectionParameters:** JavaScript object containing the parameters used for connecting to a SAP system (see above)
 - **callback:** A function to be executed after the connection has been attempted. In case of an error, an errorObject will be passed as an argument.
 
-    versionInfo = Connection.GetVersion( )
+```js
+versionInfo = Connection.GetVersion( )
+```
 
 - **versionInfo:** An Array containing major number, minor number and patch level of the NW RFC SDK
 
@@ -109,7 +112,7 @@ con.Open(conParams, function(err) {
     console.log(err);
     return;
   }
-  console.log("sapnwrfc: " + con.GetVersion());
+  console.log('sapnwrfc: ' + con.GetVersion());
 });
 ```
 
@@ -120,14 +123,18 @@ This is a two step process:
 - You will first have to lookup the function module's definition, getting a Function object in return
 - After a successful lookup, you may invoke the function and pass arguments to it
 
-However, you can this the Function object subsequently multiple times for invocations, without having to do another lookup upfront.
+However, you can use the Function object subsequently multiple times for invocations, without having to do another lookup upfront.
 
-    functionObject = Connection.Lookup( functionModuleName )
+```js
+functionObject = Connection.Lookup( functionModuleName )
+```
 
 - **functionModuleName:** A string containing the name of the remote function module to be called
 - **functionObject:** A JavaScript object (class name: Function) which represents an interface to invoke the function
 
-    Function.Invoke( functionParameters, callback( errorObject, result ) )
+```js
+Function.Invoke( functionParameters, callback( errorObject, result ) )
+```
 
 - **functionParameters:** JavaScript object containing the parameters used for connecting to a SAP system (see above)
 - **callback:** A function to be executed after the connection has been attempted. In case of an error, an errorObject will be passed as an argument. The result will be return as a JavaScriptObject (see below for details)
@@ -135,7 +142,7 @@ However, you can this the Function object subsequently multiple times for invoca
 For the sake of simplicity, the following example will neither pass arguments to the remote function nor receive a result:
 
 ```js
-var func = con.Lookup("RFC_PING");
+var func = con.Lookup('RFC_PING');
 func.Invoke({ }, function(err, result) {
   console.log('Got pong!');
 });
@@ -159,7 +166,7 @@ var params = {
   QUESTION: 'How are you'
 }
 
-var func = con.Lookup("STFC_STRING");
+var func = con.Lookup('STFC_STRING');
 func.Invoke(params, function(err, result) {
   if (err) {
     console.log(err);
@@ -181,7 +188,7 @@ var params = {
   IMPORTSTRUCT: { RFCFLOAT: 3.14159, RFCINT1: 123, RFCTIME: '094500', RFCCHAR4: 'NODE' }
 }
 
-var func = con.Lookup("STFC_STRUCTURE");
+var func = con.Lookup('STFC_STRUCTURE');
 func.Invoke(params, function(err, result) {
   if (err) {
     console.log(err);
@@ -209,7 +216,7 @@ var params = {
   IMPORT_TAB: table
 }
 
-var func = con.Lookup("STFC_DEEP_TABLE");
+var func = con.Lookup('STFC_DEEP_TABLE');
 func.Invoke(params, function(err, result) {
   if (err) {
     console.log(err);
@@ -217,16 +224,19 @@ func.Invoke(params, function(err, result) {
   }
 
   for (var i = 0; i < result.EXPORT_TAB.length; i++) {
-    console.log('Row ' + (i + 1) + ":");
+    console.log('Row ' + (i + 1) + ':');
     console.log(result.EXPORT_TAB[i]);
   }
   console.log(result.RESPTEXT);
 });
 ```
+## FAQ
 
-## TODO ##
+LD_LIBRARY_PATH is currently set to <not set>
 
-- Test units
+## TODO
+
+- Unit tests
 - More fine grained use of the invocation lock (per connection)
 - Missing but probably useful functions:
   - RfcIsConnectionHandleValid (aka Connection::IsOpen())
