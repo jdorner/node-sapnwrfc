@@ -145,13 +145,19 @@ v8::Handle<v8::Value> Connection::Open(const v8::Arguments &args)
   return scope.Close(v8::Undefined());
 }
 
+#if NODE_VERSION_AT_LEAST(0, 5, 4)
+void Connection::EIO_Open(eio_req *req)
+#else
 int Connection::EIO_Open(eio_req *req)
+#endif
 {
   Connection *self = static_cast<Connection*>(req->data);
   
   self->connectionHandle = RfcOpenConnection(self->loginParams, self->loginParamsSize, &self->errorInfo);
-  
+
+#if !NODE_VERSION_AT_LEAST(0, 5, 4)  
   return 0;
+#endif
 }
 
 int Connection::EIO_AfterOpen(eio_req *req)
@@ -186,7 +192,7 @@ int Connection::EIO_AfterOpen(eio_req *req)
   if (try_catch.HasCaught()) {
     node::FatalException(try_catch);
   }
-  
+
   return 0;
 }
 
@@ -214,9 +220,25 @@ v8::Handle<v8::Value> Connection::CloseConnection(void)
   return scope.Close(v8::True());
 }
 
+v8::Handle<v8::Value> Connection::IsOpen(const v8::Arguments &args)
+{
+  v8::HandleScope scope;
+  Connection *self = node::ObjectWrap::Unwrap<Connection>(args.This());
+  RFC_RC rc = RFC_OK;
+  RFC_ERROR_INFO errorInfo;
+  int isValid;
+  
+  rc = RfcIsConnectionHandleValid(self->connectionHandle, &isValid, &errorInfo);
+  if (!isValid) {
+    return scope.Close(v8::False());
+  } else {
+    return scope.Close(v8::True());
+  }
+}
+
 /**
  * 
- * @return true if successful, exception
+ * @return true if successful, else: RfcException
  */
 v8::Handle<v8::Value> Connection::Ping(const v8::Arguments &args)
 {
@@ -269,4 +291,3 @@ v8::Handle<v8::Value> Connection::Lookup(const v8::Arguments &args)
   
   return scope.Close(f);
 }
-

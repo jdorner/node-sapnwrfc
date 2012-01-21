@@ -27,6 +27,7 @@ SOFTWARE.
 
 #include <node.h>
 #include <v8.h>
+#include <node_version.h>
 #include <sapnwrfc.h>
 #include <pthread.h>
 
@@ -48,7 +49,11 @@ class Function : public node::ObjectWrap
   static v8::Handle<v8::Value> New(const v8::Arguments &args);
   static v8::Handle<v8::Value> Invoke(const v8::Arguments &args);
 
+#if NODE_VERSION_AT_LEAST(0, 5, 4)
+  static void EIO_Invoke(eio_req *req);
+#else
   static int EIO_Invoke(eio_req *req);
+#endif
   static int EIO_AfterInvoke(eio_req *req);
 
   v8::Handle<v8::Value> DoReceive(const CHND container);

@@ -204,7 +204,11 @@ v8::Handle<v8::Value> Function::Invoke(const v8::Arguments &args)
   return scope.Close(v8::Undefined());
 }
 
+#if NODE_VERSION_AT_LEAST(0, 5, 4)
+void Function::EIO_Invoke(eio_req *req)
+#else
 int Function::EIO_Invoke(eio_req *req)
+#endif
 {
   RFC_RC rc = RFC_OK;
   int isValid;
@@ -226,8 +230,10 @@ int Function::EIO_Invoke(eio_req *req)
   }
 
   pthread_mutex_unlock(&invocationMutex);
-  
+
+#if !NODE_VERSION_AT_LEAST(0, 5, 4)
   return 0;
+#endif
 }
 
 int Function::EIO_AfterInvoke(eio_req *req)

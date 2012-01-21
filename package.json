@@ -6,7 +6,7 @@
   , "keywords": ["sapnwrfc", "sap", "rfc" ]
   , "author": "Joachim Dorner <j.dorner@gmx.net>"
   , "main": "sapnwrfc"
-  , "engines": { "node": ">= 0.4.0" }
+  , "engines": { "node": ">= 0.5.0" }
   , "scripts": {
       "preinstall": "node-waf configure clean build install --sapnwrfcsdk=${SAPNWRFCSDK}"
   }
