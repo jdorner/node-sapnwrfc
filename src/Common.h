@@ -29,6 +29,10 @@ SOFTWARE.
 #include <sapnwrfc.h>
 #include <iostream>
 
+#ifndef _WIN32
+#define USE_PTHREADS
+#endif
+
 #ifndef nullptr
 #define nullptr NULL
 #endif
@@ -53,7 +57,7 @@ static std::string convertToString(v8::Handle<v8::Value> const &str)
 static std::string convertToString(const SAP_UC *str)
 {
   v8::HandleScope scope;
-  v8::Local<v8::String> utf16String = v8::String::New(static_cast<const uint16_t*>(str));
+  v8::Local<v8::String> utf16String = v8::String::New((const uint16_t*)(str));
   
   return convertToString(utf16String);
 }
@@ -81,19 +85,19 @@ static v8::Handle<v8::Value> RfcError(const RFC_ERROR_INFO &info)
 {
   v8::HandleScope scope;
   
-  v8::Local<v8::Value> e = v8::Exception::Error(v8::String::New(static_cast<const uint16_t*>(info.message)));
+  v8::Local<v8::Value> e = v8::Exception::Error(v8::String::New((const uint16_t*)(info.message)));
   
   v8::Local<v8::Object> obj = e->ToObject();
   obj->Set(v8::String::New("code"), v8::Integer::New(info.code));
   obj->Set(v8::String::New("group"), v8::Integer::New(info.group));
-  obj->Set(v8::String::New("key"), v8::String::New(static_cast<const uint16_t*>(info.key)));
-  obj->Set(v8::String::New("class"), v8::String::New(static_cast<const uint16_t*>(info.abapMsgClass)));
-  obj->Set(v8::String::New("type"), v8::String::New(static_cast<const uint16_t*>(info.abapMsgType)));
-  obj->Set(v8::String::New("number"), v8::String::New(static_cast<const uint16_t*>(info.abapMsgNumber)));
-  obj->Set(v8::String::New("msgv1"), v8::String::New(static_cast<const uint16_t*>(info.abapMsgV1)));
-  obj->Set(v8::String::New("msgv2"), v8::String::New(static_cast<const uint16_t*>(info.abapMsgV2)));
-  obj->Set(v8::String::New("msgv3"), v8::String::New(static_cast<const uint16_t*>(info.abapMsgV3)));
-  obj->Set(v8::String::New("msgv4"), v8::String::New(static_cast<const uint16_t*>(info.abapMsgV4)));
+  obj->Set(v8::String::New("key"), v8::String::New((const uint16_t*)(info.key)));
+  obj->Set(v8::String::New("class"), v8::String::New((const uint16_t*)(info.abapMsgClass)));
+  obj->Set(v8::String::New("type"), v8::String::New((const uint16_t*)(info.abapMsgType)));
+  obj->Set(v8::String::New("number"), v8::String::New((const uint16_t*)(info.abapMsgNumber)));
+  obj->Set(v8::String::New("msgv1"), v8::String::New((const uint16_t*)(info.abapMsgV1)));
+  obj->Set(v8::String::New("msgv2"), v8::String::New((const uint16_t*)(info.abapMsgV2)));
+  obj->Set(v8::String::New("msgv3"), v8::String::New((const uint16_t*)(info.abapMsgV3)));
+  obj->Set(v8::String::New("msgv4"), v8::String::New((const uint16_t*)(info.abapMsgV4)));
   
   return scope.Close(obj);
 }

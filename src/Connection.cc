@@ -139,28 +139,22 @@ v8::Handle<v8::Value> Connection::Open(const v8::Arguments &args)
   self->cbOpen = v8::Persistent<v8::Function>::New(v8::Local<v8::Function>::Cast(args[1]));
   self->Ref();
   
-  eio_custom(Connection::EIO_Open, EIO_PRI_DEFAULT, Connection::EIO_AfterOpen, self);
-  ev_ref(EV_DEFAULT_UC);
+  uv_work_t* req = new uv_work_t();
+  req->data = self;
+  uv_queue_work(uv_default_loop(), req, EIO_Open,  EIO_AfterOpen);
+  uv_ref(uv_default_loop());
   
   return scope.Close(v8::Undefined());
 }
 
-#if NODE_VERSION_AT_LEAST(0, 5, 4)
-void Connection::EIO_Open(eio_req *req)
-#else
-int Connection::EIO_Open(eio_req *req)
-#endif
+void Connection::EIO_Open(uv_work_t *req)
 {
   Connection *self = static_cast<Connection*>(req->data);
   
   self->connectionHandle = RfcOpenConnection(self->loginParams, self->loginParamsSize, &self->errorInfo);
-
-#if !NODE_VERSION_AT_LEAST(0, 5, 4)  
-  return 0;
-#endif
 }
 
-int Connection::EIO_AfterOpen(eio_req *req)
+void Connection::EIO_AfterOpen(uv_work_t *req)
 {
   v8::HandleScope scope;
   RFC_ERROR_INFO errorInfo;
@@ -186,14 +180,12 @@ int Connection::EIO_AfterOpen(eio_req *req)
   self->cbOpen.Dispose();
   self->cbOpen.Clear();
   
-  ev_unref(EV_DEFAULT_UC);
+  uv_unref(uv_default_loop());
   self->Unref();
 
   if (try_catch.HasCaught()) {
     node::FatalException(try_catch);
   }
-
-  return 0;
 }
 
 v8::Handle<v8::Value> Connection::Close(const v8::Arguments& args)

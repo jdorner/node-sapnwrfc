@@ -29,9 +29,12 @@ SOFTWARE.
 #include <v8.h>
 #include <node_version.h>
 #include <sapnwrfc.h>
-#include <pthread.h>
-
 #include "Common.h"
+#ifdef USE_PTHREADS
+#include <pthread.h>
+#else
+#include <Windows.h>
+#endif
 #include "Connection.h"
 
 typedef DATA_CONTAINER_HANDLE CHND;
@@ -49,12 +52,8 @@ class Function : public node::ObjectWrap
   static v8::Handle<v8::Value> New(const v8::Arguments &args);
   static v8::Handle<v8::Value> Invoke(const v8::Arguments &args);
 
-#if NODE_VERSION_AT_LEAST(0, 5, 4)
-  static void EIO_Invoke(eio_req *req);
-#else
-  static int EIO_Invoke(eio_req *req);
-#endif
-  static int EIO_AfterInvoke(eio_req *req);
+  static void EIO_Invoke(uv_work_t *req);
+  static void EIO_AfterInvoke(uv_work_t *req);
 
   v8::Handle<v8::Value> DoReceive(const CHND container);
 
@@ -122,7 +121,11 @@ class Function : public node::ObjectWrap
   };
 
   static v8::Persistent<v8::FunctionTemplate> ctorTemplate;
+#ifdef USE_PTHREADS
   static pthread_mutex_t invocationMutex;
+#else
+  static HANDLE invocationMutex;
+#endif
   
   RFC_CONNECTION_HANDLE connectionHandle;
   RFC_FUNCTION_DESC_HANDLE functionDescHandle;

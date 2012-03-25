@@ -28,12 +28,10 @@ SOFTWARE.
 #include "Connection.h"
 #include "Function.h"
 
-extern "C"
+void init(v8::Handle<v8::Object> target)
 {
-
-  void init(v8::Handle<v8::Object> target)
-  {
-    Connection::Init(target);
-    Function::Init(target);
-  }
+  Connection::Init(target);
+  Function::Init(target);
 }
+
+NODE_MODULE(sapnwrfc, init);

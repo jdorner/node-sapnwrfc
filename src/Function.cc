@@ -25,7 +25,11 @@ SOFTWARE.
 #include "Function.h"
 
 v8::Persistent<v8::FunctionTemplate> Function::ctorTemplate;
+#ifdef USE_PTHREAD
 pthread_mutex_t Function::invocationMutex = PTHREAD_MUTEX_INITIALIZER;
+#else
+HANDLE Function::invocationMutex = CreateMutex(nullptr, false, nullptr);
+#endif
 
 Function::Function(): connectionHandle(nullptr), functionDescHandle(nullptr)
 {
@@ -65,7 +69,7 @@ v8::Handle<v8::Value> Function::NewInstance(const RFC_CONNECTION_HANDLE handle, 
 
   // Lookup function interface
   v8::String::Value functionName(args[0]);
-  self->functionDescHandle = RfcGetFunctionDesc(self->connectionHandle, *functionName, &errorInfo);
+  self->functionDescHandle = RfcGetFunctionDesc(self->connectionHandle, (const SAP_UC*)*functionName, &errorInfo);
 #ifndef NDEBUG
   if (errorInfo.code == RFC_INVALID_HANDLE) {
     assert(0);
@@ -89,7 +93,7 @@ v8::Handle<v8::Value> Function::NewInstance(const RFC_CONNECTION_HANDLE handle, 
     if (rc != RFC_OK) {
       return RFC_ERROR(errorInfo);
     }
-    func->Set(v8::String::New(static_cast<const uint16_t*>(parmDesc.name)), v8::Null());
+    func->Set(v8::String::New((const uint16_t*)(parmDesc.name)), v8::Null());
   }
 
   return func;
@@ -160,7 +164,7 @@ v8::Handle<v8::Value> Function::Invoke(const v8::Arguments &args)
       return RFC_ERROR(errorInfo);
     }
 
-    v8::Local<v8::String> parmName = v8::String::New(static_cast<const uint16_t*>(parmDesc.name));
+    v8::Local<v8::String> parmName = v8::String::New((const uint16_t*)(parmDesc.name));
     v8::Handle<v8::Value> result = v8::Undefined();
 
     if (inputParm->Has(parmName) && !inputParm->Get(parmName)->IsNull()) {
@@ -198,17 +202,15 @@ v8::Handle<v8::Value> Function::Invoke(const v8::Arguments &args)
   }
 
   self->Ref();
-  eio_custom(Function::EIO_Invoke, EIO_PRI_DEFAULT, Function::EIO_AfterInvoke, baton);
-  ev_ref(EV_DEFAULT_UC);
+  uv_work_t* req = new uv_work_t();
+  req->data = baton;
+  uv_queue_work(uv_default_loop(), req, EIO_Invoke, EIO_AfterInvoke);
+  uv_ref(uv_default_loop());
 
   return scope.Close(v8::Undefined());
 }
 
-#if NODE_VERSION_AT_LEAST(0, 5, 4)
-void Function::EIO_Invoke(eio_req *req)
-#else
-int Function::EIO_Invoke(eio_req *req)
-#endif
+void Function::EIO_Invoke(uv_work_t *req)
 {
   RFC_RC rc = RFC_OK;
   int isValid;
@@ -219,7 +221,11 @@ int Function::EIO_Invoke(eio_req *req)
   assert(baton->connectionHandle != nullptr);
   assert(baton->functionHandle != nullptr);
 
+#ifdef USE_PTHREADS
   pthread_mutex_lock(&invocationMutex);
+#else
+  WaitForSingleObject(invocationMutex, INFINITE);
+#endif
 
   // Invocation
   rc = RfcInvoke(baton->connectionHandle, baton->functionHandle, &baton->errorInfo);
@@ -228,15 +234,14 @@ int Function::EIO_Invoke(eio_req *req)
   if (baton->errorInfo.code == RFC_INVALID_HANDLE) {
     rc = RfcIsConnectionHandleValid(baton->connectionHandle, &isValid, &baton->errorInfo);
   }
-
+#ifdef USE_PTHREADS
   pthread_mutex_unlock(&invocationMutex);
-
-#if !NODE_VERSION_AT_LEAST(0, 5, 4)
-  return 0;
+#else
+  ReleaseMutex(invocationMutex);
 #endif
 }
 
-int Function::EIO_AfterInvoke(eio_req *req)
+void Function::EIO_AfterInvoke(uv_work_t *req)
 {
   v8::HandleScope scope;
   RFC_ERROR_INFO errorInfo;
@@ -268,16 +273,14 @@ int Function::EIO_AfterInvoke(eio_req *req)
 
   assert(!baton->cbInvoke.IsEmpty());
   baton->cbInvoke->Call(v8::Context::GetCurrent()->Global(), 2, argv);
-  
-  ev_unref(EV_DEFAULT_UC);
+
+  uv_unref(uv_default_loop());
   baton->function->Unref();
   delete baton;
 
   if (try_catch.HasCaught()) {
     node::FatalException(try_catch);
   }
-
-  return 0;
 }
 
 v8::Handle<v8::Value> Function::DoReceive(const CHND container)
@@ -314,7 +317,7 @@ v8::Handle<v8::Value> Function::DoReceive(const CHND container)
         if (IsException(parmValue)) {
           return ThrowException(parmValue);
         }
-        result->Set(v8::String::New(static_cast<const uint16_t*>(parmDesc.name)), parmValue);
+        result->Set(v8::String::New((const uint16_t*)parmDesc.name), parmValue);
         break;
       default:
         assert(0);
@@ -425,7 +428,7 @@ v8::Handle<v8::Value> Function::StructureToExternal(const CHND container, const 
   unsigned fieldCount;
 
   if (!value->IsObject()) {
-    return RFC_ERROR("Argument has unexpected type: ", v8::String::New(static_cast<const uint16_t*>(fieldDesc.name)));
+    return RFC_ERROR("Argument has unexpected type: ", v8::String::New((const uint16_t*)(fieldDesc.name)));
   }
   v8::Local<v8::Object> valueObj = value->ToObject();
 
@@ -446,7 +449,7 @@ v8::Handle<v8::Value> Function::StructureToExternal(const CHND container, const 
       return RFC_ERROR(errorInfo);
     }
 
-    v8::Local<v8::String> fieldName = v8::String::New(static_cast<const uint16_t*>(fieldDesc.name));
+    v8::Local<v8::String> fieldName = v8::String::New((const uint16_t*)(fieldDesc.name));
 
     if (valueObj->Has(fieldName)) {
       v8::Handle<v8::Value> result = this->SetField(struc, fieldDesc, valueObj->Get(fieldName));
@@ -470,7 +473,7 @@ v8::Handle<v8::Value> Function::TableToExternal(const CHND container, const SAP_
   uint32_t rowCount;
 
   if (!value->IsArray()) {
-    return RFC_ERROR("Argument has unexpected type: ", v8::String::New(static_cast<const uint16_t*>(name)));
+    return RFC_ERROR("Argument has unexpected type: ", v8::String::New((const uint16_t*)(name)));
   }
 
   rc = RfcGetTable(container, name, &tableHandle, &errorInfo);
@@ -501,11 +504,11 @@ v8::Handle<v8::Value> Function::StringToExternal(const CHND container, const SAP
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsString()) {
-    return RFC_ERROR("Argument has unexpected type: ", v8::String::New(static_cast<const uint16_t*>(name)));
+    return RFC_ERROR("Argument has unexpected type: ", v8::String::New((const uint16_t*)(name)));
   }
 
   v8::String::Value valueU16(value->ToString());
-  rc = RfcSetString(container, name, *valueU16, valueU16.length(), &errorInfo);
+  rc = RfcSetString(container, name, (const SAP_UC*)*valueU16, valueU16.length(), &errorInfo);
   if (rc != RFC_OK) {
     return RFC_ERROR(errorInfo);
   }
@@ -520,7 +523,7 @@ v8::Handle<v8::Value> Function::XStringToExternal(const CHND container, const SA
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsString()) {
-    return RFC_ERROR("Argument has unexpected type: ", v8::String::New(static_cast<const uint16_t*>(name)));
+    return RFC_ERROR("Argument has unexpected type: ", v8::String::New((const uint16_t*)(name)));
   }
 
   v8::String::AsciiValue valueAscii(value->ToString());
@@ -539,15 +542,15 @@ v8::Handle<v8::Value> Function::NumToExternal(const CHND container, const SAP_UC
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsString()) {
-    return RFC_ERROR("Argument has unexpected type: ", v8::String::New(static_cast<const uint16_t*>(name)));
+    return RFC_ERROR("Argument has unexpected type: ", v8::String::New((const uint16_t*)(name)));
   }
 
   v8::String::Value valueU16(value->ToString());
   if (valueU16.length() > len) {
-    return RFC_ERROR("Argument exceeds maximum length: ", v8::String::New(static_cast<const uint16_t*>(name)));
+    return RFC_ERROR("Argument exceeds maximum length: ", v8::String::New((const uint16_t*)(name)));
   }
   
-  rc = RfcSetNum(container, name, *valueU16, valueU16.length(), &errorInfo);
+  rc = RfcSetNum(container, name, (const RFC_NUM*)*valueU16, valueU16.length(), &errorInfo);
   if (rc != RFC_OK) {
     return RFC_ERROR(errorInfo);
   }
@@ -562,15 +565,15 @@ v8::Handle<v8::Value> Function::CharToExternal(const CHND container, const SAP_U
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsString()) {
-    return RFC_ERROR("Argument has unexpected type: ", v8::String::New(static_cast<const uint16_t*>(name)));
+    return RFC_ERROR("Argument has unexpected type: ", v8::String::New((const uint16_t*)(name)));
   }
 
   v8::String::Value valueU16(value->ToString());
   if (valueU16.length() > len) {
-    return RFC_ERROR("Argument exceeds maximum length: ", v8::String::New(static_cast<const uint16_t*>(name)));
+    return RFC_ERROR("Argument exceeds maximum length: ", v8::String::New((const uint16_t*)(name)));
   }
 
-  rc = RfcSetChars(container, name, *valueU16, valueU16.length(), &errorInfo);
+  rc = RfcSetChars(container, name, (const RFC_CHAR*)*valueU16, valueU16.length(), &errorInfo);
   if (rc != RFC_OK) {
     return RFC_ERROR(errorInfo);
   }
@@ -585,12 +588,12 @@ v8::Handle<v8::Value> Function::ByteToExternal(const CHND container, const SAP_U
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsString()) {
-    return RFC_ERROR("Argument has unexpected type: ", v8::String::New(static_cast<const uint16_t*>(name)));
+    return RFC_ERROR("Argument has unexpected type: ", v8::String::New((const uint16_t*)(name)));
   }
 
   v8::String::AsciiValue valueAscii(value->ToString());
   if (valueAscii.length() > len) {
-    return RFC_ERROR("Argument exceeds maximum length: ", v8::String::New(static_cast<const uint16_t*>(name)));
+    return RFC_ERROR("Argument exceeds maximum length: ", v8::String::New((const uint16_t*)(name)));
   }
   
   rc = RfcSetBytes(container, name, reinterpret_cast<SAP_RAW*>(*valueAscii), len, &errorInfo);
@@ -609,7 +612,7 @@ v8::Handle<v8::Value> Function::IntToExternal(const CHND container, const SAP_UC
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsInt32()) {
-    return RFC_ERROR("Argument has unexpected type: ", v8::String::New(static_cast<const uint16_t*>(name)));
+    return RFC_ERROR("Argument has unexpected type: ", v8::String::New((const uint16_t*)(name)));
   }
   RFC_INT rfcValue = value->ToInt32()->Value();
 
@@ -628,11 +631,11 @@ v8::Handle<v8::Value> Function::Int1ToExternal(const CHND container, const SAP_U
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsInt32()) {
-    return RFC_ERROR("Argument has unexpected type: ", v8::String::New(static_cast<const uint16_t*>(name)));
+    return RFC_ERROR("Argument has unexpected type: ", v8::String::New((const uint16_t*)(name)));
   }
   int32_t convertedValue = value->ToInt32()->Value();
   if ((convertedValue < -128) || (convertedValue > 127)) {
-    return RFC_ERROR("Argument out of range: ", v8::String::New(static_cast<const uint16_t*>(name)));
+    return RFC_ERROR("Argument out of range: ", v8::String::New((const uint16_t*)(name)));
   }
   RFC_INT1 rfcValue = convertedValue;
 
@@ -651,12 +654,12 @@ v8::Handle<v8::Value> Function::Int2ToExternal(const CHND container, const SAP_U
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsInt32()) {
-    return RFC_ERROR("Argument has unexpected type: ", v8::String::New(static_cast<const uint16_t*>(name)));
+    return RFC_ERROR("Argument has unexpected type: ", v8::String::New((const uint16_t*)(name)));
   }
 
   int32_t convertedValue = value->ToInt32()->Value();
   if ((convertedValue < -32768) || (convertedValue > 32767)) {
-    return RFC_ERROR("Argument out of range: ", v8::String::New(static_cast<const uint16_t*>(name)));
+    return RFC_ERROR("Argument out of range: ", v8::String::New((const uint16_t*)(name)));
   }
   RFC_INT2 rfcValue = convertedValue;
 
@@ -675,7 +678,7 @@ v8::Handle<v8::Value> Function::FloatToExternal(const CHND container, const SAP_
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsNumber()) {
-    return RFC_ERROR("Argument has unexpected type: ", v8::String::New(static_cast<const uint16_t*>(name)));
+    return RFC_ERROR("Argument has unexpected type: ", v8::String::New((const uint16_t*)(name)));
   }
   RFC_FLOAT rfcValue = value->ToNumber()->Value();
 
@@ -693,17 +696,17 @@ v8::Handle<v8::Value> Function::DateToExternal(const CHND container, const SAP_U
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsString()) {
-    return RFC_ERROR("Argument has unexpected type: ", v8::String::New(static_cast<const uint16_t*>(name)));
+    return RFC_ERROR("Argument has unexpected type: ", v8::String::New((const uint16_t*)(name)));
   }
 
   v8::Local<v8::String> str = value->ToString();
   if (str->Length() != 8) {
-    return RFC_ERROR("Invalid date format: ", v8::String::New(static_cast<const uint16_t*>(name)));
+    return RFC_ERROR("Invalid date format: ", v8::String::New((const uint16_t*)(name)));
   }
   
   v8::String::Value rfcValue(str);
   assert(*rfcValue);
-  RFC_RC rc = RfcSetDate(container, name, *rfcValue, &errorInfo);
+  RFC_RC rc = RfcSetDate(container, name, (const RFC_CHAR*)*rfcValue, &errorInfo);
   if (rc != RFC_OK) {
     return RFC_ERROR(errorInfo);
   }
@@ -717,17 +720,17 @@ v8::Handle<v8::Value> Function::TimeToExternal(const CHND container, const SAP_U
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsString()) {
-    return RFC_ERROR("Argument has unexpected type: ", v8::String::New(static_cast<const uint16_t*>(name)));
+    return RFC_ERROR("Argument has unexpected type: ", v8::String::New((const uint16_t*)(name)));
   }
 
   v8::Local<v8::String> str = value->ToString();
   if (str->Length() != 6) {
-    return RFC_ERROR("Invalid time format: ", v8::String::New(static_cast<const uint16_t*>(name)));
+    return RFC_ERROR("Invalid time format: ", v8::String::New((const uint16_t*)(name)));
   }
 
   v8::String::Value rfcValue(str);
   assert(*rfcValue);
-  RFC_RC rc = RfcSetTime(container, name, *rfcValue, &errorInfo);
+  RFC_RC rc = RfcSetTime(container, name, (const RFC_CHAR*)*rfcValue, &errorInfo);
   if (rc != RFC_OK) {
     return RFC_ERROR(errorInfo);
   }
@@ -742,12 +745,12 @@ v8::Handle<v8::Value> Function::BCDToExternal(const CHND container, const SAP_UC
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsNumber()) {
-    return RFC_ERROR("Argument has unexpected type: ", v8::String::New(static_cast<const uint16_t*>(name)));
+    return RFC_ERROR("Argument has unexpected type: ", v8::String::New((const uint16_t*)(name)));
   }
 
   v8::String::Value valueU16(value->ToString());
     
-  rc = RfcSetString(container, name, *valueU16, valueU16.length(), &errorInfo);
+  rc = RfcSetString(container, name, (const SAP_UC*)*valueU16, valueU16.length(), &errorInfo);
   if (rc != RFC_OK) {
     return RFC_ERROR(errorInfo);
   }
@@ -873,7 +876,7 @@ v8::Handle<v8::Value> Function::StructureToInternal(const CHND container, const 
     if (IsException(value)) {
       return scope.Close(value);
     }
-    obj->Set(v8::String::New(static_cast<const uint16_t*>(fieldDesc.name)), value);
+    obj->Set(v8::String::New((const uint16_t*)(fieldDesc.name)), value);
   }
 
   return scope.Close(obj);
@@ -942,7 +945,7 @@ v8::Handle<v8::Value> Function::StringToInternal(const CHND container, const SAP
     return RFC_ERROR(errorInfo);
   }
   
-  v8::Local<v8::String> value = v8::String::New(static_cast<const uint16_t*>(buffer));
+  v8::Local<v8::String> value = v8::String::New((const uint16_t*)(buffer));
 
   free(buffer);
       
@@ -997,7 +1000,7 @@ v8::Handle<v8::Value> Function::NumToInternal(const CHND container, const SAP_UC
     return RFC_ERROR(errorInfo);
   }
   
-  v8::Local<v8::String> value = v8::String::New(static_cast<const uint16_t*>(buffer));
+  v8::Local<v8::String> value = v8::String::New((const uint16_t*)(buffer));
 
   free(buffer);
       
@@ -1019,7 +1022,7 @@ v8::Handle<v8::Value> Function::CharToInternal(const CHND container, const SAP_U
     return RFC_ERROR(errorInfo);
   }
   
-  v8::Local<v8::String> value = v8::String::New(static_cast<const uint16_t*>(buffer));
+  v8::Local<v8::String> value = v8::String::New((const uint16_t*)(buffer));
 
   free(buffer);
       
@@ -1116,7 +1119,7 @@ v8::Handle<v8::Value> Function::DateToInternal(const CHND container, const SAP_U
   }
 
   assert(sizeof(RFC_CHAR) > 0); // Shouldn't occur except in case of a compiler glitch
-  v8::Local<v8::String> value = v8::String::New(static_cast<const uint16_t*>(date), sizeof(RFC_DATE) / sizeof(RFC_CHAR));
+  v8::Local<v8::String> value = v8::String::New((const uint16_t*)(date), sizeof(RFC_DATE) / sizeof(RFC_CHAR));
 
   return scope.Close(value);
 }
@@ -1133,7 +1136,7 @@ v8::Handle<v8::Value> Function::TimeToInternal(const CHND container, const SAP_U
   }
 
   assert(sizeof(RFC_CHAR) > 0); // Shouldn't occur except in case of a compiler glitch
-  v8::Local<v8::String> value = v8::String::New(static_cast<const uint16_t*>(time), sizeof(RFC_TIME) / sizeof(RFC_CHAR));
+  v8::Local<v8::String> value = v8::String::New((const uint16_t*)(time), sizeof(RFC_TIME) / sizeof(RFC_CHAR));
       
   return scope.Close(value);
 }
@@ -1163,7 +1166,7 @@ v8::Handle<v8::Value> Function::BCDToInternal(const CHND container, const SAP_UC
     }
   } while (rc == RFC_BUFFER_TOO_SMALL);
   
-  v8::Local<v8::String> value = v8::String::New(static_cast<const uint16_t*>(buffer), retStrLen);
+  v8::Local<v8::String> value = v8::String::New((const uint16_t*)(buffer), retStrLen);
 
   free(buffer);
       

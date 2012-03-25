@@ -28,7 +28,7 @@ SOFTWARE.
 #include <v8.h>
 #include <node.h>
 #include <node_version.h>
-#include <ev.h>
+#include <uv.h>
 #include <sapnwrfc.h>
 #include <iostream>
 
@@ -50,12 +50,8 @@ class Connection : public node::ObjectWrap
     static v8::Handle<v8::Value> Lookup(const v8::Arguments &args);
     static v8::Handle<v8::Value> IsOpen(const v8::Arguments &args);
 
-#if NODE_VERSION_AT_LEAST(0, 5, 4)
-    static void EIO_Open(eio_req *req);
-#else
-    static int EIO_Open(eio_req *req);
-#endif
-    static int EIO_AfterOpen(eio_req *req);
+    static void EIO_Open(uv_work_t *req);
+    static void EIO_AfterOpen(uv_work_t *req);
     
     v8::Handle<v8::Value> CloseConnection(void);
     
@@ -66,7 +62,11 @@ class Connection : public node::ObjectWrap
     RFC_ERROR_INFO errorInfo;
     RFC_CONNECTION_HANDLE connectionHandle;
     v8::Persistent<v8::Function> cbOpen;
+#ifdef USE_PTHREADS
     pthread_mutex_t invocationMutex;
+#else
+    HANDLE invocationMutex;
+#endif
 };
 
 #endif /* CONNECTION_H_ */

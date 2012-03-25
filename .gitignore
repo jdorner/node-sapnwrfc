@@ -4,3 +4,4 @@ nwrfcsdk/*
 sapnwrfc.node
 .lock*
 build/*
+.node-gyp/*
