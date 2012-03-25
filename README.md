@@ -79,7 +79,7 @@ var conParams = {
   sysid: 'NPL',
   sysnr: '42',
   user: 'DEVELOPER',
-  Passwd: 'password',
+  passwd: 'password',
   client: '001',
   lang: 'E'
 };
@@ -137,7 +137,7 @@ Function.Invoke( functionParameters, callback( errorObject, result ) )
 ```
 
 - **functionParameters:** JavaScript object containing the parameters used for connecting to a SAP system (see above)
-- **callback:** A function to be executed after the connection has been attempted. In case of an error, an errorObject will be passed as an argument. The result will be return as a JavaScriptObject (see below for details)
+- **callback:** A function to be executed after the connection has been attempted. In case of an error, an errorObject will be passed as an argument. The result will be returned as a JavaScriptObject (see below for details)
 
 For the sake of simplicity, the following example will neither pass arguments to the remote function nor receive a result:
 
@@ -230,9 +230,6 @@ func.Invoke(params, function(err, result) {
   console.log(result.RESPTEXT);
 });
 ```
-## FAQ
-
-LD_LIBRARY_PATH is currently set to <not set>
 
 ## TODO
 
