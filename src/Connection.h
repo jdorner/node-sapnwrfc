@@ -25,6 +25,7 @@ SOFTWARE.
 #ifndef CONNECTION_H_
 #define CONNECTION_H_
 
+#include "Common.h"
 #include <v8.h>
 #include <node.h>
 #include <node_version.h>

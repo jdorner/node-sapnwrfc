@@ -25,6 +25,7 @@ SOFTWARE.
 #ifndef FUNCTION_H_
 #define FUNCTION_H_
 
+#include "Common.h"
 #include <node.h>
 #include <v8.h>
 #include <node_version.h>

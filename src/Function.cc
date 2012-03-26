@@ -25,7 +25,7 @@ SOFTWARE.
 #include "Function.h"
 
 v8::Persistent<v8::FunctionTemplate> Function::ctorTemplate;
-#ifdef USE_PTHREAD
+#ifdef USE_PTHREADS
 pthread_mutex_t Function::invocationMutex = PTHREAD_MUTEX_INITIALIZER;
 #else
 HANDLE Function::invocationMutex = CreateMutex(nullptr, false, nullptr);
