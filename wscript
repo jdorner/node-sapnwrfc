@@ -42,14 +42,14 @@ def configure(conf):
                       libpath = sapnwrfcsdk_libpath,
                       uselib_store = 'NWRFCSDK')
   if not result:
-    conf.fatal('\n\nDownload, extract and copy the SAP NW RFC SDK to your system lib/include directories\n OR \nuse the --sapnwrfsdk option')
+    conf.fatal('\n\nDownload, extract and copy the SAP NW RFC SDK to your system lib/include directories\n OR \nuse the --sapnwrfcsdk option')
 
   result = conf.check(lib='sapucum',
                       includes = sapnwrfcsdk_includes,
                       libpath = sapnwrfcsdk_libpath,
                       uselib_store = 'NWRFCSDK')
   if not result:
-    conf.fatal('\n\nDownload, extract and copy the SAP NW RFC SDK to your system lib/include directories\n OR \nuse the --sapnwrfsdk option')
+    conf.fatal('\n\nDownload, extract and copy the SAP NW RFC SDK to your system lib/include directories\n OR \nuse the --sapnwrfcsdk option')
 
   # CXX/Linker flags
   cxx_flags = '-O2 -g -fexceptions -funsigned-char -fno-strict-aliasing -fPIC -pthread -minline-all-stringops'
