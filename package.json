@@ -10,7 +10,4 @@
   , "dependencies": {
         "bindings": ">=0.3.0"
   }
-  , "scripts": {
-      "preinstall": "node-waf configure clean build install --sapnwrfcsdk=${SAPNWRFCSDK}"
-  }
 }

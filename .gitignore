@@ -1,7 +1,8 @@
 build.sh
 clean.sh
 nwrfcsdk
-.lock*
-build/*
-.node-gyp
 node_modules
+build
+.node-gyp
+.lock*
+npm-debug.log
