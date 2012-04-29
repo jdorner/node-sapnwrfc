@@ -7,6 +7,9 @@
   , "author": "Joachim Dorner <j.dorner@gmx.net>"
   , "main": "sapnwrfc"
   , "engines": { "node": ">= 0.6.0" }
+  , "dependencies": {
+        "bindings": ">=0.3.0"
+  }
   , "scripts": {
       "preinstall": "node-waf configure clean build install --sapnwrfcsdk=${SAPNWRFCSDK}"
   }
