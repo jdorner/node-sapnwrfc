@@ -1,0 +1,9 @@
+{
+  "name": "sapnwrfc",
+  "version": "0.1.2",
+  "dependencies": {
+    "bindings": {
+      "version": "0.3.0"
+    }
+  }
+}
