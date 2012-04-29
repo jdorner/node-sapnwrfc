@@ -1,7 +1,6 @@
 build.sh
 clean.sh
 nwrfcsdk
-sapnwrfc.node
 .lock*
 build/*
 .node-gyp
