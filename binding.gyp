@@ -4,10 +4,6 @@
     'library': 'shared_library',
     'target_arch': 'ia32',
     'output_directory': 'Release',
-    #'sapnwrfcsdk_libs': '<(module_root_dir)/nwrfcsdk/lib',
-    #'sapnwrfcsdk_includes': '<(module_root_dir)/nwrfcsdk/lib',
-    'sapnwrfcsdk_libs': '/usr/local/include',
-    'sapnwrfcsdk_includes': '/usr/local/lib',
   },
 
   'targets': [{
@@ -37,10 +33,6 @@
       'NDEBUG',
     ],
     
-    'include_dirs': [
-      '<(sapnwrfcsdk_includes)'
-    ],
-
     'conditions': [
       [ 'OS=="win"', {
         'defines': [
@@ -55,6 +47,9 @@
           'UNICODE',
           '_UNICODE'
         ],
+        'include_dirs': [
+          '<(module_root_dir)/nwrfcsdk/include',
+        ],
         'msvs_configuration_attributes': {
           'OutputDirectory': '$(SolutionDir)$(ConfigurationName)',
           'IntermediateDirectory': '$(OutDir)\\obj'
@@ -62,7 +57,7 @@
         'msvs-settings': {
           'VCLinkerTool': {
             'SubSystem': 3, # /subsystem:dll
-            'AdditionalLibraryDirectories': 'nwrfcsdk/lib',
+            'AdditionalLibraryDirectories': '<(module_root_dir)/nwrfcsdk/lib',
             'AdditionalDependencies': 'sapnwrfc.lib;sapucum.lib',
           },
         },
@@ -77,6 +72,9 @@
           '-Wall',
           '-pedantic'
         ],
+        'include_dirs': [
+          '/usr/local/include'
+        ],
         'defines': [
           'SAPonUNIX',
           'SAPonLIN',
@@ -84,7 +82,6 @@
           '__NO_MATH_INLINES'
         ],
         'libraries': [ '-lsapnwrfc', '-lsapucum' ],
-        #'ldflags': [ '-L<(sapnwrfcsdk_home)' ],
       }]
     ],
   }] # end targets
