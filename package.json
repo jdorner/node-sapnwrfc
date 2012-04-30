@@ -10,4 +10,7 @@
   , "dependencies": {
         "bindings": ">=0.3.0"
   }
+  , "scripts": {
+    "install": "node preinstall.js"
+  }
 }
