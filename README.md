@@ -5,11 +5,11 @@
 This module provides bindings to the SAP Netweaver RFC SDK. With it, you will be able to call remote enabled function modules of a SAP system.
 Opening the connection and function invocations are fully/partially asynchronous operations, which will call a callback function upon completion.
 
-## Installation
+## Preparation
 
 **Note:** In order to use this module you will have to obtain the SAP NW RFC SDK via http://service.sap.com. For further instructions see OSS note 1025361.
 
-### Option 1 (needs root privileges or write permissions to system directories)
+### Linux
 
 - Extract the SDK archive with SAPCAR
 - Copy the files from the lib and include folders to the corresponding system directories (/usr/local/Lib /usr/local/include)
@@ -17,46 +17,22 @@ Opening the connection and function invocations are fully/partially asynchronous
 ```sh
 ./SAPCAR_3-20002089.EXE -xf NWRFC_8-20004549.SAR
 cd nwrfcsdk
-cp ./lib/* /usr/local/lib
-cp ./include/* /usr/local/inlude
+cp ./lib/* /usr/lib
+cp ./include/* /usr/inlude
 ```
 
-### Option 2 (local installation to module folder)
+### Windows
 
 - Extract the SDK archive with SAPCAR
-- Before executing `npm` you have will to set an environment variable that points to the SDK's root folder.
-  E.g.:
+- Copy the files from the lib folder to C:\Windows\system32
 
-```sh
-export SAPNWRFCSDK=/home/<user>/node_test/nwrfcsdk
-```
+## Installation (both Linux and Windows)
 
-- Then you may download the addon from the [npm registry](http://search.npmjs.org), build and install it by using the `npm` command. 
+- You may now download the addon from the [npm registry](http://search.npmjs.org) and install it by using the `npm` command. 
 
 ```sh
 npm install sapnwrfc
 ```
-
-  The contents of the NW RFC SDK will be copied into the newly created directory within the `node_modules` folder. The linker will look in this place when
-  trying to load the shared libraries at runtime.
-
-  The folder structure should look like this:
-
-    <node_app>
-    |-- ...
-    |-- node_modules
-    |   |---...
-    |   |-- sapnwrfc
-    |   |   |-- build
-    |   |   |-- nwrfcsdk
-    |   |   |   |-- bin
-    |   |   |   |-- demo
-    |   |   |   |-- doc
-    |   |   |   |-- include
-    |   |   |   |-- lib
-    |   |   |-- src
-    |   |---...
-    |-- ...
 
 ## Usage
 
@@ -241,13 +217,12 @@ func.Invoke(params, function(err, result) {
   - RfcGetPartnerSSOTicket
 - Use of buffers for xstring/byte
 - Event emission on disconnect
-- Windows port
 
 ## License 
 
 (The MIT License)
 
-Copyright (c) 2011 Joachim Dorner
+Copyright (c) 2011-2012 Joachim Dorner
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
