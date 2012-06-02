@@ -26,6 +26,10 @@ cp ./include/* /usr/inlude
 - Extract the SDK archive with SAPCAR
 - Copy the files from the lib folder to C:\Windows\system32
 
+### OS X
+
+OS X is **not supported** due to the fact that there is no suitable SAP RFC NW SDK available. The module will compile but fail when trying to lazy-load its dependencies.
+
 ## Installation (both Linux and Windows)
 
 - You may now download the addon from the [npm registry](http://search.npmjs.org) and install it by using the `npm` command. 
