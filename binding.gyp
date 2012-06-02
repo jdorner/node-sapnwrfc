@@ -3,7 +3,7 @@
     'module_name': 'sapnwrfc',
     'library': 'shared_library',
     'target_arch': 'ia32',
-    'output_directory': 'Release',
+    'output_directory': 'bin',
   },
 
   'targets': [{
@@ -65,6 +65,36 @@
       }],
       
       [ 'OS=="mac"', {
+        'defines': [
+          'SAPonUNIX',
+          'SAPwithTHREADS',
+          '__NO_MATH_INLINES'
+        ],
+        'conditions': [
+          [ 'target_arch=="ia32"' , {
+            'xcode_settings' : {
+              'ARCHS': ['i386'],
+              'OTHER_CFLAGS': ['-m32'],
+              'OTHER_CXX_FLAGS': ['-m32'],
+              'OTHER_LDFLAGS': ['-m32']
+            }
+          }],
+          [ 'target_arch=="x64"' , {
+            'xcode_settings' : {
+              'ARCHS': ['x86_64'],
+              'OTHER_CFLAGS': ['-m64'],
+              'OTHER_CXX_FLAGS': ['-m64'],
+              'OTHER_LDFLAGS': ['-m64']
+            }
+          }],
+        ],
+        'xcode_settings': {
+          'GCC_OPTIMIZATION_LEVEL': '3',
+          'WARNING_CFLAGS!': [
+            '-Wall',
+            '-W'
+          ]
+        }
       }],
       
       [ 'OS=="linux"', {
