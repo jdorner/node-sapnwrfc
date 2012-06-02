@@ -3,7 +3,7 @@
     'module_name': 'sapnwrfc',
     'library': 'shared_library',
     'target_arch': 'ia32',
-    'output_directory': 'bin',
+    'output_directory': 'Release',
   },
 
   'targets': [{
@@ -20,7 +20,6 @@
     'type': '<(library)',
     'product_name': '<(module_name)',
     'product_extension': 'node',
-    'product_dir': '<(output_directory)',
     'product_prefix': '',
     
     'defines': [
@@ -62,6 +61,7 @@
           },
         },
        'libraries': [ '-lsapnwrfc.lib', '-llibsapucum.lib' ],
+       'product_dir': '<(output_directory)'
       }],
       
       [ 'OS=="mac"', {
@@ -112,6 +112,7 @@
           '__NO_MATH_INLINES'
         ],
         'libraries': [ '-lsapnwrfc', '-lsapucum' ],
+        'product_dir': '<(output_directory)'
       }]
     ],
   }] # end targets
