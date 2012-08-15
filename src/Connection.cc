@@ -33,11 +33,14 @@ Connection::Connection() :
   loginParams(nullptr),
   connectionHandle(nullptr)
 {
+  uv_mutex_init(&this->invocationMutex);
 }
 
 Connection::~Connection()
 {
   this->CloseConnection();
+
+  uv_mutex_destroy(&this->invocationMutex);
   
   for (unsigned int i = 0; i < this->loginParamsSize; i++) {
      free(const_cast<SAP_UC*>(loginParams[i].name));
@@ -212,6 +215,21 @@ v8::Handle<v8::Value> Connection::CloseConnection(void)
   return scope.Close(v8::True());
 }
 
+RFC_CONNECTION_HANDLE Connection::GetConnectionHandle(void)
+{
+  return this->connectionHandle;
+}
+
+void Connection::LockMutex(void)
+{
+  uv_mutex_lock(&this->invocationMutex);
+}
+
+void Connection::UnlockMutex(void)
+{
+  uv_mutex_unlock(&this->invocationMutex);
+}
+
 v8::Handle<v8::Value> Connection::IsOpen(const v8::Arguments &args)
 {
   v8::HandleScope scope;
@@ -276,7 +294,7 @@ v8::Handle<v8::Value> Connection::Lookup(const v8::Arguments &args)
     return v8::ThrowException(RfcError(errorInfo));
   }
 
-  v8::Local<v8::Value> f = v8::Local<v8::Value>::New(Function::NewInstance(self->connectionHandle, args));
+  v8::Local<v8::Value> f = v8::Local<v8::Value>::New(Function::NewInstance(*self, args));
   if (IsException(f)) {
     return scope.Close(v8::ThrowException(f));
   }

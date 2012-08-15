@@ -214,7 +214,6 @@ func.Invoke(params, function(err, result) {
 ## TODO
 
 - Unit tests
-- More fine grained use of the invocation lock (per connection)
 - Missing but probably useful functions:
   - RfcIsConnectionHandleValid (aka Connection::IsOpen())
   - RfcRemoveFunctionDesc (invalidate cache)

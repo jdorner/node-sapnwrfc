@@ -25,13 +25,8 @@ SOFTWARE.
 #include "Function.h"
 
 v8::Persistent<v8::FunctionTemplate> Function::ctorTemplate;
-#ifdef USE_PTHREADS
-pthread_mutex_t Function::invocationMutex = PTHREAD_MUTEX_INITIALIZER;
-#else
-HANDLE Function::invocationMutex = CreateMutex(nullptr, false, nullptr);
-#endif
 
-Function::Function(): connectionHandle(nullptr), functionDescHandle(nullptr)
+Function::Function(): connection(nullptr), functionDescHandle(nullptr)
 {
 }
 
@@ -52,7 +47,7 @@ void Function::Init(v8::Handle<v8::Object> target)
   target->Set(v8::String::NewSymbol("Function"), ctorTemplate->GetFunction());
 }
 
-v8::Handle<v8::Value> Function::NewInstance(const RFC_CONNECTION_HANDLE handle, const v8::Arguments &args)
+v8::Handle<v8::Value> Function::NewInstance(Connection &connection, const v8::Arguments &args)
 {
   v8::HandleScope scope;
   unsigned int parmCount;
@@ -62,14 +57,14 @@ v8::Handle<v8::Value> Function::NewInstance(const RFC_CONNECTION_HANDLE handle, 
   v8::Local<v8::Object> func = ctorTemplate->GetFunction()->NewInstance();
   Function *self = node::ObjectWrap::Unwrap<Function>(func);
 
-  // Save connection handle
+  // Save connection
   assert(self != nullptr);
   assert(handle != nullptr);
-  self->connectionHandle = handle;
+  self->connection = &connection;
 
   // Lookup function interface
   v8::String::Value functionName(args[0]);
-  self->functionDescHandle = RfcGetFunctionDesc(self->connectionHandle, (const SAP_UC*)*functionName, &errorInfo);
+  self->functionDescHandle = RfcGetFunctionDesc(connection.GetConnectionHandle(), (const SAP_UC*)*functionName, &errorInfo);
 #ifndef NDEBUG
   if (errorInfo.code == RFC_INVALID_HANDLE) {
     assert(0);
@@ -136,7 +131,7 @@ v8::Handle<v8::Value> Function::Invoke(const v8::Arguments &args)
   // Create baton to hold call context
   InvocationBaton *baton = new InvocationBaton();
   baton->function = self;
-  baton->connectionHandle = self->connectionHandle;
+  baton->connection = self->connection;
 
   // Store callback
   baton->cbInvoke = v8::Persistent<v8::Function>::New(v8::Local<v8::Function>::Cast(args[1]));
@@ -223,24 +218,17 @@ void Function::EIO_Invoke(uv_work_t *req)
   assert(baton->connectionHandle != nullptr);
   assert(baton->functionHandle != nullptr);
 
-#ifdef USE_PTHREADS
-  pthread_mutex_lock(&invocationMutex);
-#else
-  WaitForSingleObject(invocationMutex, INFINITE);
-#endif
+  baton->connection->LockMutex();
 
   // Invocation
-  rc = RfcInvoke(baton->connectionHandle, baton->functionHandle, &baton->errorInfo);
+  rc = RfcInvoke(baton->connection->GetConnectionHandle(), baton->functionHandle, &baton->errorInfo);
 
   // If handle is invalid, fetch a better error message
   if (baton->errorInfo.code == RFC_INVALID_HANDLE) {
-    rc = RfcIsConnectionHandleValid(baton->connectionHandle, &isValid, &baton->errorInfo);
+    rc = RfcIsConnectionHandleValid(baton->connection->GetConnectionHandle(), &isValid, &baton->errorInfo);
   }
-#ifdef USE_PTHREADS
-  pthread_mutex_unlock(&invocationMutex);
-#else
-  ReleaseMutex(invocationMutex);
-#endif
+  
+  baton->connection->UnlockMutex();
 }
 
 void Function::EIO_AfterInvoke(uv_work_t *req)

@@ -30,12 +30,6 @@ SOFTWARE.
 #include <v8.h>
 #include <node_version.h>
 #include <sapnwrfc.h>
-#include "Common.h"
-#ifdef USE_PTHREADS
-#include <pthread.h>
-#else
-#include <Windows.h>
-#endif
 #include "Connection.h"
 
 typedef DATA_CONTAINER_HANDLE CHND;
@@ -44,7 +38,7 @@ class Function : public node::ObjectWrap
 {
   public:
   static void Init(v8::Handle<v8::Object> target);
-  static v8::Handle<v8::Value> NewInstance(const RFC_CONNECTION_HANDLE handle, const v8::Arguments &args);
+  static v8::Handle<v8::Value> NewInstance(Connection &connection, const v8::Arguments &args);
 
   protected:
   Function();
@@ -115,20 +109,16 @@ class Function : public node::ObjectWrap
     };
 
     Function *function;
-    RFC_CONNECTION_HANDLE connectionHandle;
+    Connection *connection;
     RFC_FUNCTION_HANDLE functionHandle;
     v8::Persistent<v8::Function> cbInvoke;
     RFC_ERROR_INFO errorInfo;
   };
 
   static v8::Persistent<v8::FunctionTemplate> ctorTemplate;
-#ifdef USE_PTHREADS
-  static pthread_mutex_t invocationMutex;
-#else
-  static HANDLE invocationMutex;
-#endif
   
-  RFC_CONNECTION_HANDLE connectionHandle;
+  //RFC_CONNECTION_HANDLE connectionHandle;
+  Connection *connection;
   RFC_FUNCTION_DESC_HANDLE functionDescHandle;
 };
 

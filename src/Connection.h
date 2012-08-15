@@ -35,6 +35,8 @@ SOFTWARE.
 
 class Connection : public node::ObjectWrap
 {
+  friend class Function;
+
   public:
   
     static void Init(v8::Handle<v8::Object> target);
@@ -56,6 +58,10 @@ class Connection : public node::ObjectWrap
     
     v8::Handle<v8::Value> CloseConnection(void);
     
+    RFC_CONNECTION_HANDLE GetConnectionHandle(void);
+    void LockMutex(void);
+    void UnlockMutex(void);
+    
     static v8::Persistent<v8::FunctionTemplate> ctorTemplate;
 
     unsigned int loginParamsSize;
@@ -63,11 +69,7 @@ class Connection : public node::ObjectWrap
     RFC_ERROR_INFO errorInfo;
     RFC_CONNECTION_HANDLE connectionHandle;
     v8::Persistent<v8::Function> cbOpen;
-#ifdef USE_PTHREADS
-    pthread_mutex_t invocationMutex;
-#else
-    HANDLE invocationMutex;
-#endif
+    uv_mutex_t invocationMutex;
 };
 
 #endif /* CONNECTION_H_ */

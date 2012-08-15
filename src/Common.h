@@ -29,10 +29,6 @@ SOFTWARE.
 #include <sapnwrfc.h>
 #include <iostream>
 
-#ifndef _WIN32
-#define USE_PTHREADS
-#endif
-
 #ifndef nullptr
 #define nullptr NULL
 #endif
