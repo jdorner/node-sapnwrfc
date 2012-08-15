@@ -48,7 +48,7 @@ var sapnwrfc = require('sapnwrfc');
 
 ## Connection parameters
 
-Connection parameters have to be specified using a JavaScript object. For a complete list of possible paramters, refer to the
+Connection parameters have to be specified using a JavaScript object. For a complete list of possible parameters, refer to the
 _SAP NetWeaver RFC SDK Guide_ which is available via [SAP Connectors](http://service.sap.com/connectors).
 
 Example:
@@ -187,9 +187,9 @@ Example:
 
 ```js
 var table = [
-  { I: 1, C: 'A', 'STR': 'String1' },
-  { I: 2, C: 'B', 'STR': 'String2' },
-  { I: 3, C: 'C', 'STR': 'String3' }
+  { I: 1, C: 'A', STR: 'String1' },
+  { I: 2, C: 'B', STR: 'String2' },
+  { I: 3, C: 'C', STR: 'String3' }
 ];
 
 var params = {
