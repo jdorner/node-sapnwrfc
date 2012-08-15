@@ -142,7 +142,9 @@ v8::Handle<v8::Value> Connection::Open(const v8::Arguments &args)
   uv_work_t* req = new uv_work_t();
   req->data = self;
   uv_queue_work(uv_default_loop(), req, EIO_Open,  EIO_AfterOpen);
-  uv_ref(uv_default_loop());
+#if !NODE_VERSION_AT_LEAST(0, 7, 9)
+    uv_ref(uv_default_loop());
+#endif
   
   return scope.Close(v8::Undefined());
 }
@@ -178,9 +180,7 @@ void Connection::EIO_AfterOpen(uv_work_t *req)
   assert(!self->cbOpen.IsEmpty());
   self->cbOpen->Call(v8::Context::GetCurrent()->Global(), 1, argv);
   self->cbOpen.Dispose();
-  self->cbOpen.Clear();
-  
-  uv_unref(uv_default_loop());
+  self->cbOpen.Clear();  
   self->Unref();
 
   if (try_catch.HasCaught()) {

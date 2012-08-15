@@ -205,7 +205,9 @@ v8::Handle<v8::Value> Function::Invoke(const v8::Arguments &args)
   uv_work_t* req = new uv_work_t();
   req->data = baton;
   uv_queue_work(uv_default_loop(), req, EIO_Invoke, EIO_AfterInvoke);
+#if !NODE_VERSION_AT_LEAST(0, 7, 9)
   uv_ref(uv_default_loop());
+#endif
 
   return scope.Close(v8::Undefined());
 }
@@ -274,7 +276,6 @@ void Function::EIO_AfterInvoke(uv_work_t *req)
   assert(!baton->cbInvoke.IsEmpty());
   baton->cbInvoke->Call(v8::Context::GetCurrent()->Global(), 2, argv);
 
-  uv_unref(uv_default_loop());
   baton->function->Unref();
   delete baton;
 
