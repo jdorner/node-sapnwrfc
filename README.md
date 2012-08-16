@@ -211,6 +211,13 @@ func.Invoke(params, function(err, result) {
 });
 ```
 
+## Changelog
+
+### 0.1.3 (2012-08-16)
+
+- Support for Node.js >= 0.7.9
+- Change global invocation lock to a connection based lock
+
 ## TODO
 
 - Unit tests
