@@ -3,6 +3,7 @@
   , "version": "0.1.3"
   , "description": "Bindings for the SAP NetWeaver RFC SDK"
   , "homepage": "https://github.com/jdorner/node-sapnwrfc"
+  , "repository": { "type": "git", "url": "git://github.com/jdorner/node-sapnwrfc.git" }
   , "keywords": ["sapnwrfc", "sap", "rfc" ]
   , "author": "Joachim Dorner <joachim.dorner@gmail.com>"
   , "main": "sapnwrfc"
