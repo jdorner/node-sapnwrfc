@@ -36,7 +36,6 @@
       [ 'OS=="win"', {
         'defines': [
           'PLATFORM="win32"',
-          '_X86_',
           'WIN32',
           '_AFXDLL',
           '_CRT_NON_CONFORMING_SWPRINTFS',
@@ -45,6 +44,14 @@
           'SAPonNT',
           'UNICODE',
           '_UNICODE'
+        ],
+        'conditions': [
+          [ 'target_arch=="ia32"' , {
+            'defines' : ['_X86_']
+           }],
+          [ 'target_arch=="x64"' , {
+	           'defines': ['_AMD64_']
+           }]
         ],
         'include_dirs': [
           '<(module_root_dir)/nwrfcsdk/include',
