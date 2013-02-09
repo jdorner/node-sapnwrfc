@@ -213,6 +213,9 @@ func.Invoke(params, function(err, result) {
 
 ## Changelog
 
+### 0.1.4 (2013-02-09)
+- Fix compilation on Linux (issue #2)
+
 ### 0.1.3 (2012-08-16)
 
 - Support for Node.js >= 0.7.9
