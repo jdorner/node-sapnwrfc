@@ -118,8 +118,7 @@
           'SAPwithTHREADS',
           '__NO_MATH_INLINES'
         ],
-        'libraries': [ '-lsapnwrfc', '-lsapucum' ],
-        'product_dir': '<(output_directory)'
+        'libraries': [ '-lsapnwrfc', '-lsapucum' ]
       }]
     ],
   }] # end targets
