@@ -110,7 +110,7 @@
           '-pedantic'
         ],
         'include_dirs': [
-          '/usr/local/include'
+          '<(nwrfcsdk_path)/include'
         ],
         'defines': [
           'SAPonUNIX',
@@ -118,6 +118,9 @@
           'SAPwithTHREADS',
           '__NO_MATH_INLINES'
         ],
+		'ldflags': [
+			'-L<(nwrfcsdk_path)/lib'
+		],
         'libraries': [ '-lsapnwrfc', '-lsapucum' ]
       }]
     ],
