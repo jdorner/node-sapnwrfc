@@ -199,7 +199,7 @@ v8::Handle<v8::Value> Function::Invoke(const v8::Arguments &args)
   self->Ref();
   uv_work_t* req = new uv_work_t();
   req->data = baton;
-  uv_queue_work(uv_default_loop(), req, EIO_Invoke, EIO_AfterInvoke);
+  uv_queue_work(uv_default_loop(), req, EIO_Invoke, (uv_after_work_cb)EIO_AfterInvoke);
 #if !NODE_VERSION_AT_LEAST(0, 7, 9)
   uv_ref(uv_default_loop());
 #endif

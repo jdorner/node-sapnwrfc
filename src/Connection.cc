@@ -144,7 +144,7 @@ v8::Handle<v8::Value> Connection::Open(const v8::Arguments &args)
   
   uv_work_t* req = new uv_work_t();
   req->data = self;
-  uv_queue_work(uv_default_loop(), req, EIO_Open,  EIO_AfterOpen);
+  uv_queue_work(uv_default_loop(), req, EIO_Open, (uv_after_work_cb)EIO_AfterOpen);
 #if !NODE_VERSION_AT_LEAST(0, 7, 9)
     uv_ref(uv_default_loop());
 #endif
