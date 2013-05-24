@@ -60,14 +60,13 @@
           'OutputDirectory': '$(SolutionDir)$(ConfigurationName)',
           'IntermediateDirectory': '$(OutDir)\\obj'
         },
-        'msvs-settings': {
+        'msvs_settings': {
           'VCLinkerTool': {
-            'SubSystem': 3, # /subsystem:dll
-            'AdditionalLibraryDirectories': '<(module_root_dir)/nwrfcsdk/lib',
-            'AdditionalDependencies': 'sapnwrfc.lib;sapucum.lib',
+            'AdditionalLibraryDirectories': [ '<(module_root_dir)/nwrfcsdk/lib' ],
+            'AdditionalDependencies': [ 'sapnwrfc.lib', 'libsapucum.lib' ]
           },
         },
-       'libraries': [ '-lsapnwrfc.lib', '-llibsapucum.lib' ],
+       #'libraries': [ '-lsapnwrfc.lib', '-llibsapucum.lib' ],
        'product_dir': '<(output_directory)'
       }],
       
