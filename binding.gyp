@@ -4,6 +4,7 @@
     'library': 'shared_library',
     'target_arch': 'ia32',
     'output_directory': 'Release',
+    'msvs_nwrfcsdk_path': '<(module_root_dir)/nwrfcsdk'
   },
 
   'targets': [{
@@ -54,7 +55,7 @@
            }]
         ],
         'include_dirs': [
-          '<(module_root_dir)/nwrfcsdk/include',
+          '<(msvs_nwrfcsdk_path)/include'
         ],
         'msvs_configuration_attributes': {
           'OutputDirectory': '$(SolutionDir)$(ConfigurationName)',
@@ -62,7 +63,7 @@
         },
         'msvs_settings': {
           'VCLinkerTool': {
-            'AdditionalLibraryDirectories': [ '<(module_root_dir)/nwrfcsdk/lib' ],
+            'AdditionalLibraryDirectories': [ '<(msvs_nwrfcsdk_path)/lib' ],
             'AdditionalDependencies': [ 'sapnwrfc.lib', 'libsapucum.lib' ]
           },
         },
