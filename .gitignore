@@ -3,6 +3,7 @@ clean.sh
 nwrfcsdk
 node_modules
 build
+compiled
 .node-gyp
 .lock*
 npm-debug.log
