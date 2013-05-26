@@ -215,7 +215,7 @@ func.Invoke(params, function(err, result) {
 
 ### 0.1.5 (2013-05-25)
 - Support for Node.js 0.10
-- Fix library path issue not working (Windows)
+- Fix library path issue (Windows)
 - Add parameter msvs_nwrfcsdk_path for node-gyp
 
 ### 0.1.4 (2013-02-09)
