@@ -23,6 +23,8 @@ SOFTWARE.
 */
 
 #include "Function.h"
+#include <cassert>
+#include <sstream>
 
 v8::Persistent<v8::FunctionTemplate> Function::ctorTemplate;
 
@@ -43,6 +45,7 @@ void Function::Init(v8::Handle<v8::Object> target)
   ctorTemplate->SetClassName(v8::String::NewSymbol("Function"));
 
   NODE_SET_PROTOTYPE_METHOD(ctorTemplate, "Invoke", Function::Invoke);
+  NODE_SET_PROTOTYPE_METHOD(ctorTemplate, "MetaData", Function::MetaData);
 
   target->Set(v8::String::NewSymbol("Function"), ctorTemplate->GetFunction());
 }
@@ -204,6 +207,62 @@ v8::Handle<v8::Value> Function::Invoke(const v8::Arguments &args)
 #endif
 
   return scope.Close(v8::Undefined());
+}
+
+v8::Handle<v8::Value> Function::MetaData(const v8::Arguments &args)
+{
+  v8::HandleScope scope;
+  RFC_RC rc = RFC_OK;
+  unsigned int parmCount;
+  RFC_ERROR_INFO errorInfo;
+
+  Function *self = node::ObjectWrap::Unwrap<Function>(args.This());
+  assert(self != nullptr);
+
+  rc = RfcGetParameterCount(self->functionDescHandle, &parmCount, &errorInfo);
+  if (rc != RFC_OK) {
+    return RFC_ERROR(errorInfo);
+  }
+
+  v8::Local<v8::Object> metaObject = v8::Object::New();
+  RFC_ABAP_NAME functionName;
+  rc = RfcGetFunctionName(self->functionDescHandle, functionName, &errorInfo);
+  if (rc != RFC_OK) {
+    return RFC_ERROR(errorInfo);
+  }
+
+  RFC_FUNCTION_HANDLE functionHandle = RfcCreateFunction(self->functionDescHandle, &errorInfo);
+  if (functionHandle == nullptr) {
+    RfcDestroyFunction(functionHandle, &errorInfo);
+    return RFC_ERROR(errorInfo);
+  }
+
+  std::string title = "Signature of SAP RFC function " + convertToString( functionName);
+
+  metaObject->Set(v8::String::New("title"), v8::String::New(title.c_str()));
+  metaObject->Set(v8::String::New("type"), v8::String::New("object"));
+
+  v8::Local<v8::Object> properties = v8::Object::New();
+  metaObject->Set(v8::String::New("properties"), properties);
+
+  // Dynamically add parameters to JS object
+  for (unsigned int i = 0; i < parmCount; i++) {
+    RFC_PARAMETER_DESC parmDesc;
+
+    rc = RfcGetParameterDescByIndex(self->functionDescHandle, i, &parmDesc, &errorInfo);
+    if (rc != RFC_OK) {
+      return RFC_ERROR(errorInfo);
+    }
+
+    if( !addMetaData(functionHandle, properties, parmDesc.name, parmDesc.type,
+                parmDesc.nucLength, parmDesc.direction, &errorInfo, parmDesc.parameterText)) {
+      return RFC_ERROR(errorInfo);
+    }
+  }
+
+  RfcDestroyFunction(functionHandle, &errorInfo);
+
+  return scope.Close(metaObject);
 }
 
 void Function::EIO_Invoke(uv_work_t *req)
@@ -1158,4 +1217,183 @@ v8::Handle<v8::Value> Function::BCDToInternal(const CHND container, const SAP_UC
   free(buffer);
       
   return scope.Close(value->ToNumber());
+}
+
+std::string Function::mapExternalTypeToJavaScriptType( RFCTYPE sapType)
+{
+  switch( sapType) {
+    case RFCTYPE_CHAR:
+    case RFCTYPE_DATE:
+    case RFCTYPE_BCD:
+    case RFCTYPE_TIME:
+    case RFCTYPE_BYTE:
+    case RFCTYPE_NUM:
+    case RFCTYPE_STRING:
+    case RFCTYPE_XSTRING:
+      return "string";
+    case RFCTYPE_TABLE:
+      return "array";
+    case RFCTYPE_ABAPOBJECT:
+    case RFCTYPE_STRUCTURE:
+      return "object";
+    case RFCTYPE_FLOAT:
+    case RFCTYPE_DECF16:
+    case RFCTYPE_DECF34:
+      return "number";
+    case RFCTYPE_INT:
+    case RFCTYPE_INT2:
+    case RFCTYPE_INT1:
+    case RFCTYPE_INT8:
+    case RFCTYPE_UTCLONG:
+    case RFCTYPE_UTCSECOND:
+    case RFCTYPE_UTCMINUTE:
+    case RFCTYPE_DTDAY:
+    case RFCTYPE_DTWEEK:
+    case RFCTYPE_DTMONTH:
+    case RFCTYPE_TSECOND:
+    case RFCTYPE_TMINUTE:
+    case RFCTYPE_CDAY:
+      return "integer";
+    default:
+      return "undefined";
+  }
+
+}
+
+
+bool Function::addMetaData(const CHND container, v8::Local<v8::Object> &parent,
+                           const RFC_ABAP_NAME name, RFCTYPE type,
+                           unsigned int length, RFC_DIRECTION direction,
+                           RFC_ERROR_INFO *errorInfo, RFC_PARAMETER_TEXT paramText)
+{
+  RFC_RC rc = RFC_OK;
+
+  v8::Local<v8::Object> actualType = v8::Object::New();
+  parent->Set(v8::String::New((const uint16_t*)name), actualType);
+
+  actualType->Set(v8::String::New("type"), v8::String::New(mapExternalTypeToJavaScriptType(type).c_str()));
+
+  std::stringstream lengthString;
+  lengthString << length;
+  actualType->Set(v8::String::New("length"), v8::String::New(lengthString.str().c_str()));
+
+  actualType->Set(v8::String::New("sapType"), v8::String::New((uint16_t*)RfcGetTypeAsString(type)));
+
+  if(paramText != nullptr) {
+	  actualType->Set(v8::String::NewSymbol("description"), v8::String::New((const uint16_t*)paramText));
+  }
+
+  if( direction != 0) {
+    actualType->Set(v8::String::New("sapDirection"), v8::String::New((uint16_t*)RfcGetDirectionAsString(direction)));
+  }
+
+  if( type == RFCTYPE_STRUCTURE)
+  {
+    RFC_STRUCTURE_HANDLE strucHandle;
+    RFC_TYPE_DESC_HANDLE typeHandle;
+    RFC_FIELD_DESC fieldDesc;
+    unsigned fieldCount;
+	RFC_ABAP_NAME typeName;
+
+    rc = RfcGetStructure(container, name, &strucHandle, errorInfo);
+    if (rc != RFC_OK) {
+      return false;
+    }
+
+    typeHandle = RfcDescribeType(strucHandle, errorInfo);
+    assert(typeHandle);
+    if (typeHandle == nullptr) {
+      return false;
+    }
+
+	rc = RfcGetTypeName(typeHandle, typeName, errorInfo);
+	if (rc != RFC_OK) {
+      return false;
+    }
+
+	actualType->Set(v8::String::NewSymbol("sapTypeName"), v8::String::New((const uint16_t*)typeName));
+
+    rc = RfcGetFieldCount(typeHandle, &fieldCount, errorInfo);
+    if (rc != RFC_OK) {
+      return false;
+    }
+
+	v8::Local<v8::Object> properties = v8::Object::New();
+    actualType->Set(v8::String::New("properties"), properties);
+
+    for (unsigned int i = 0; i < fieldCount; i++) {
+      rc = RfcGetFieldDescByIndex(typeHandle, i, &fieldDesc, errorInfo);
+      if (rc != RFC_OK) {
+        return false;
+      }
+
+      if( !addMetaData( strucHandle, properties, fieldDesc.name, fieldDesc.type,
+                   fieldDesc.nucLength, RFC_DIRECTION(0), errorInfo)) {
+        return false;
+      }
+    }
+  }
+  else if( type == RFCTYPE_TABLE)
+  {
+    RFC_TABLE_HANDLE tableHandle;
+    RFC_TYPE_DESC_HANDLE typeHandle;
+    RFC_FIELD_DESC fieldDesc;
+    unsigned fieldCount;
+	RFC_ABAP_NAME typeName;
+
+    rc = RfcGetTable(container, name, &tableHandle, errorInfo);
+    if (rc != RFC_OK) {
+      return false;
+    }
+
+    typeHandle = RfcDescribeType(tableHandle, errorInfo);
+    assert(typeHandle);
+    if (typeHandle == nullptr) {
+      return false;
+    }
+
+	rc = RfcGetTypeName(typeHandle, typeName, errorInfo);
+	if (rc != RFC_OK) {
+      return false;
+    }
+
+	typeHandle = RfcDescribeType(tableHandle, errorInfo);
+    assert(typeHandle);
+    if (typeHandle == nullptr) {
+      return false;
+    }
+
+    rc = RfcGetFieldCount(typeHandle, &fieldCount, errorInfo);
+    if (rc != RFC_OK) {
+      return false;
+    }
+
+    v8::Local<v8::Object> items = v8::Object::New();
+    actualType->Set(v8::String::New("items"), items);	
+	items->Set(v8::String::NewSymbol("sapTypeName"), v8::String::New((const uint16_t*)typeName));
+
+    items->Set(v8::String::New("type"), v8::String::New("object"));
+
+    v8::Local<v8::Object> properties = v8::Object::New();
+    items->Set(v8::String::New("properties"), properties);
+
+    RFC_STRUCTURE_HANDLE rowHandle = RfcAppendNewRow(tableHandle, errorInfo);
+    if (rc != RFC_OK) {
+      return false;
+    }
+
+    for (unsigned int i = 0; i < fieldCount; i++) {
+      rc = RfcGetFieldDescByIndex(typeHandle, i, &fieldDesc, errorInfo);
+      if (rc != RFC_OK) {
+        return false;
+      }
+
+      if( !addMetaData( rowHandle, properties, fieldDesc.name, fieldDesc.type,
+                   fieldDesc.nucLength, RFC_DIRECTION(0), errorInfo)) {
+        return false;
+      }
+    }
+  }
+
+  return true;
 }

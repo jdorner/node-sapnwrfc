@@ -36,6 +36,8 @@ SOFTWARE.
 #define THROW_V8_EXCEPTION(msg) ThrowException(v8::Exception::Error(v8::String::New(msg)));
 #define RFC_ERROR(...) scope.Close(RfcError(__VA_ARGS__))
 
+typedef DATA_CONTAINER_HANDLE CHND;
+
 static std::string convertToString(v8::Handle<v8::Value> const &str)
 {
   v8::HandleScope scope;

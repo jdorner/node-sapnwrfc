@@ -35,7 +35,9 @@ http.createServer(function (req, res) {
         return;
       }
       console.log(result);
-      res.end(result.MYANSWER + "\n");
+      res.write(result.MYANSWER + "\n");
+      res.write("\nJSON Schema:\n");
+      res.end(JSON.stringify(func.MetaData(), null, 2));
     });
   });
 }).listen(3000, '127.0.0.1');
