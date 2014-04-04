@@ -1,7 +1,7 @@
 "use strict";
 
 var http = require('http');
-var sapnwrfc = require('sapnwrfc');
+var sapnwrfc = require('../sapnwrfc');
 
 var connectionParams = {
   ashost: "192.168.0.20",
