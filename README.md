@@ -25,6 +25,7 @@ cp ./include/* /usr/inlude
 
 - Extract the SDK archive with SAPCAR
 - Copy the files from the lib folder to C:\Windows\system32
+- Warning: If you are working with NodeJS 32-bit on a Windows 64-bit OS, you should copy the files to C:\Windows\SysWOW64 instead.
 
 ### OS X
 
