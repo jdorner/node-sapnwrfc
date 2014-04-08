@@ -59,7 +59,6 @@ v8::Handle<v8::Value> Function::NewInstance(Connection &connection, const v8::Ar
 
   // Save connection
   assert(self != nullptr);
-  assert(handle != nullptr);
   self->connection = &connection;
 
   // Lookup function interface
@@ -215,7 +214,6 @@ void Function::EIO_Invoke(uv_work_t *req)
   InvocationBaton *baton = static_cast<InvocationBaton*>(req->data);
 
   assert(baton != nullptr);
-  assert(baton->connectionHandle != nullptr);
   assert(baton->functionHandle != nullptr);
 
   baton->connection->LockMutex();
