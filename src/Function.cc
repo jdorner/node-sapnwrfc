@@ -1224,7 +1224,6 @@ std::string Function::mapExternalTypeToJavaScriptType( RFCTYPE sapType)
   switch( sapType) {
     case RFCTYPE_CHAR:
     case RFCTYPE_DATE:
-    case RFCTYPE_BCD:
     case RFCTYPE_TIME:
     case RFCTYPE_BYTE:
     case RFCTYPE_NUM:
@@ -1236,6 +1235,7 @@ std::string Function::mapExternalTypeToJavaScriptType( RFCTYPE sapType)
     case RFCTYPE_ABAPOBJECT:
     case RFCTYPE_STRUCTURE:
       return "object";
+    case RFCTYPE_BCD:
     case RFCTYPE_FLOAT:
     case RFCTYPE_DECF16:
     case RFCTYPE_DECF34:
