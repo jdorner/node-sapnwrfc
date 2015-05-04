@@ -80,14 +80,6 @@ static SAP_UC* convertToSAPUC(v8::Handle<v8::Value> const &str) {
   return sapuc;
 }
 
-static v8::Local<v8::Value> RfcError(const char *msg, const SAP_UC *sapName) {
-    Nan::EscapableHandleScope scope;
-
-    v8::Local<v8::String> s = Nan::New<v8::String>(msg).ToLocalChecked();
-    v8::String::Concat(s, Nan::New<v8::String>(sapName).ToLocalChecked());
-    return scope.Escape(s);
-}
-
 static v8::Local<v8::Value> RfcError(const RFC_ERROR_INFO &info)
 {
   Nan::EscapableHandleScope scope;
@@ -143,30 +135,21 @@ static v8::Local<v8::Value> RfcError(const RFC_ERROR_INFO &info)
 
 static v8::Handle<v8::Value> RfcError(const char* message, v8::Handle<v8::Value> value)
 {
-  Nan::EscapableHandleScope scope;
-
   v8::Local<v8::String> leftSide = Nan::New<v8::String>(message).ToLocalChecked();
   v8::Local<v8::String> exceptionString = v8::String::Concat(leftSide, value->ToString());
-  v8::Local<v8::Value> e = v8::Exception::Error(exceptionString);
 
-  return scope.Escape(e->ToObject());
+  return Nan::Error(exceptionString);
+}
+
+static v8::Local<v8::Value> RfcError(const char *message, const SAP_UC *sapName) {
+    v8::Local<v8::String> name = Nan::New<v8::String>(sapName).ToLocalChecked();
+
+    return RfcError(message, name);
 }
 
 static bool IsException(v8::Handle<v8::Value> value)
 {
-  Nan::HandleScope scope;
-  const v8::Local<v8::Value> sample = Nan::Error(Nan::New<v8::String>("").ToLocalChecked());
-  const v8::Local<v8::String> protoSample = sample->ToObject()->ObjectProtoToString();
-
-  if (!value->IsObject()) {
-    return false;
-  }
-  v8::Local<v8::String> protoReal = value->ToObject()->ObjectProtoToString();
-  if (protoReal->Equals(protoSample)) {
-    return true;
-  }
-
-  return false;
+  return value->IsNativeError();
 }
 
 #endif /* COMMON_H_ */
