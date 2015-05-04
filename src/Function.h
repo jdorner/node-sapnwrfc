@@ -1,4 +1,4 @@
-/* 
+/*
 -----------------------------------------------------------------------------
 Copyright (c) 2011 Joachim Dorner
 
@@ -43,7 +43,7 @@ class Function : public node::ObjectWrap
   protected:
   Function();
   ~Function();
-  
+
   static v8::Handle<v8::Value> New(const v8::Arguments &args);
   static v8::Handle<v8::Value> Invoke(const v8::Arguments &args);
 
@@ -96,7 +96,7 @@ class Function : public node::ObjectWrap
     InvocationBaton() : function(nullptr), functionHandle(nullptr) { };
     ~InvocationBaton() {
       RFC_ERROR_INFO errorInfo;
-    
+
       if (this->functionHandle) {
         RfcDestroyFunction(this->functionHandle, &errorInfo);
         this->functionHandle = nullptr;
@@ -116,7 +116,7 @@ class Function : public node::ObjectWrap
   };
 
   static v8::Persistent<v8::FunctionTemplate> ctorTemplate;
-  
+
   //RFC_CONNECTION_HANDLE connectionHandle;
   Connection *connection;
   RFC_FUNCTION_DESC_HANDLE functionDescHandle;
