@@ -102,7 +102,6 @@ class Function : public node::ObjectWrap
     };
 
     static void DestroyFunctionHandle(v8::Persistent<v8::Value> value, void *parameters) {
-      printf("Destructed\n");
       v8::Handle<v8::External> wrappedFunctionHandle = v8::Handle<v8::External>::Cast(value);
       RFC_FUNCTION_HANDLE functionHandle = static_cast<RFC_FUNCTION_HANDLE>(wrappedFunctionHandle->Value());
       RFC_ERROR_INFO errorInfo;
