@@ -50,7 +50,7 @@ class Function : public node::ObjectWrap
   static void EIO_Invoke(uv_work_t *req);
   static void EIO_AfterInvoke(uv_work_t *req);
 
-  v8::Handle<v8::Value> DoReceive(const CHND container);
+  v8::Handle<v8::Value> DoReceive(const CHND container, v8::Persistent<v8::External> functionHandle);
 
   v8::Handle<v8::Value> SetParameter(const CHND container, RFC_PARAMETER_DESC &desc, v8::Handle<v8::Value> value);
   v8::Handle<v8::Value> SetField(const CHND container, RFC_FIELD_DESC &desc, v8::Handle<v8::Value> value);
@@ -71,12 +71,12 @@ class Function : public node::ObjectWrap
   v8::Handle<v8::Value> DateToExternal(const CHND container, const SAP_UC *name, v8::Handle<v8::Value> value);
   v8::Handle<v8::Value> BCDToExternal(const CHND container, const SAP_UC *name, v8::Handle<v8::Value> value);
 
-  v8::Handle<v8::Value> GetParameter(const CHND container, const RFC_PARAMETER_DESC &desc);
-  v8::Handle<v8::Value> GetField(const CHND container, const RFC_FIELD_DESC &desc);
-  v8::Handle<v8::Value> GetValue(const CHND container, RFCTYPE type, const SAP_UC *name, unsigned len);
-  v8::Handle<v8::Value> StructureToInternal(const CHND container, const SAP_UC *name);
-  v8::Handle<v8::Value> StructureToInternal(const CHND container, const RFC_STRUCTURE_HANDLE struc);
-  v8::Handle<v8::Value> TableToInternal(const CHND container, const SAP_UC *name);
+  v8::Handle<v8::Value> GetParameter(const CHND container, const RFC_PARAMETER_DESC &desc, v8::Persistent<v8::External> functionHandle);
+  v8::Handle<v8::Value> GetField(const CHND container, const RFC_FIELD_DESC &desc, v8::Persistent<v8::External> functionHandle);
+  v8::Handle<v8::Value> GetValue(const CHND container, RFCTYPE type, const SAP_UC *name, unsigned len, v8::Persistent<v8::External> functionHandle);
+  v8::Handle<v8::Value> StructureToInternal(const CHND container, const SAP_UC *name, v8::Persistent<v8::External> functionHandle);
+  v8::Handle<v8::Value> StructureToInternal(const CHND container, const RFC_STRUCTURE_HANDLE struc, v8::Persistent<v8::External> functionHandle);
+  v8::Handle<v8::Value> TableToInternal(const CHND container, const SAP_UC *name, v8::Persistent<v8::External> functionHandle);
   v8::Handle<v8::Value> StringToInternal(const CHND container, const SAP_UC *name);
   v8::Handle<v8::Value> XStringToInternal(const CHND container, const SAP_UC *name);
   v8::Handle<v8::Value> NumToInternal(const CHND container, const SAP_UC *name, unsigned len);

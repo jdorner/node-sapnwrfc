@@ -247,7 +247,7 @@ void Function::EIO_AfterInvoke(uv_work_t *req)
   if (baton->errorInfo.code != RFC_OK) {
     argv[0] = v8::Local<v8::Value>::New(RfcError(baton->errorInfo));
   } else {
-    v8::Local<v8::Value> result = v8::Local<v8::Value>::New(baton->function->DoReceive(baton->functionHandle));
+    v8::Local<v8::Value> result = v8::Local<v8::Value>::New(baton->function->DoReceive(baton->functionHandle, wrappedFunctionHandle));
     if (IsException(result)) {
       argv[0] = result;
     } else {
@@ -271,7 +271,7 @@ void Function::EIO_AfterInvoke(uv_work_t *req)
   }
 }
 
-v8::Handle<v8::Value> Function::DoReceive(const CHND container)
+v8::Handle<v8::Value> Function::DoReceive(const CHND container, v8::Persistent<v8::External> functionHandle)
 {
   v8::HandleScope scope;
   RFC_RC rc = RFC_OK;
@@ -301,7 +301,7 @@ v8::Handle<v8::Value> Function::DoReceive(const CHND container)
       case RFC_CHANGING:
       case RFC_TABLES:
       case RFC_EXPORT:
-        parmValue = this->GetParameter(container, parmDesc);
+        parmValue = this->GetParameter(container, parmDesc, functionHandle);
         if (IsException(parmValue)) {
           return ThrowException(parmValue);
         }
@@ -746,19 +746,19 @@ v8::Handle<v8::Value> Function::BCDToExternal(const CHND container, const SAP_UC
   return scope.Close(v8::Null());
 }
 
-v8::Handle<v8::Value> Function::GetParameter(const CHND container, const RFC_PARAMETER_DESC &desc)
+v8::Handle<v8::Value> Function::GetParameter(const CHND container, const RFC_PARAMETER_DESC &desc, v8::Persistent<v8::External> functionHandle)
 {
   v8::HandleScope scope;
-  return scope.Close(this->GetValue(container, desc.type, desc.name, desc.nucLength));
+  return scope.Close(this->GetValue(container, desc.type, desc.name, desc.nucLength, functionHandle));
 }
 
-v8::Handle<v8::Value> Function::GetField(const CHND container, const RFC_FIELD_DESC &desc)
+v8::Handle<v8::Value> Function::GetField(const CHND container, const RFC_FIELD_DESC &desc, v8::Persistent<v8::External> functionHandle)
 {
   v8::HandleScope scope;
-  return scope.Close(this->GetValue(container, desc.type, desc.name, desc.nucLength));
+  return scope.Close(this->GetValue(container, desc.type, desc.name, desc.nucLength, functionHandle));
 }
 
-v8::Handle<v8::Value> Function::GetValue(const CHND container, RFCTYPE type, const SAP_UC *name, unsigned len)
+v8::Handle<v8::Value> Function::GetValue(const CHND container, RFCTYPE type, const SAP_UC *name, unsigned len, v8::Persistent<v8::External> functionHandle)
 {
   v8::HandleScope scope;
   v8::Handle<v8::Value> value = v8::Null();
@@ -795,10 +795,10 @@ v8::Handle<v8::Value> Function::GetValue(const CHND container, RFCTYPE type, con
       value = this->Int2ToInternal(container, name);
       break;
     case RFCTYPE_STRUCTURE:
-      value = this->StructureToInternal(container, name);
+      value = this->StructureToInternal(container, name, functionHandle);
       break;
     case RFCTYPE_TABLE:
-      value = this->TableToInternal(container, name);
+      value = this->TableToInternal(container, name, functionHandle);
       break;
     case RFCTYPE_STRING:
       value = this->StringToInternal(container, name);
@@ -816,7 +816,7 @@ v8::Handle<v8::Value> Function::GetValue(const CHND container, RFCTYPE type, con
   return scope.Close(value);
 }
 
-v8::Handle<v8::Value> Function::StructureToInternal(const CHND container, const SAP_UC *name)
+v8::Handle<v8::Value> Function::StructureToInternal(const CHND container, const SAP_UC *name, v8::Persistent<v8::External> functionHandle)
 {
   v8::HandleScope scope;
   RFC_ERROR_INFO errorInfo;
@@ -828,10 +828,10 @@ v8::Handle<v8::Value> Function::StructureToInternal(const CHND container, const 
     return RFC_ERROR(errorInfo);
   }
 
-  return scope.Close(this->StructureToInternal(container, strucHandle));
+  return scope.Close(this->StructureToInternal(container, strucHandle, functionHandle));
 }
 
-v8::Handle<v8::Value> Function::StructureToInternal(const CHND container, const RFC_STRUCTURE_HANDLE struc)
+v8::Handle<v8::Value> Function::StructureToInternal(const CHND container, const RFC_STRUCTURE_HANDLE struc, v8::Persistent<v8::External> functionHandle)
 {
   v8::HandleScope scope;
   RFC_ERROR_INFO errorInfo;
@@ -859,7 +859,7 @@ v8::Handle<v8::Value> Function::StructureToInternal(const CHND container, const 
       return RFC_ERROR(errorInfo);
     }
 
-    v8::Handle<v8::Value> value = this->GetField(struc, fieldDesc);
+    v8::Handle<v8::Value> value = this->GetField(struc, fieldDesc, functionHandle);
     // Bail out on exception
     if (IsException(value)) {
       return scope.Close(value);
@@ -870,7 +870,7 @@ v8::Handle<v8::Value> Function::StructureToInternal(const CHND container, const 
   return scope.Close(obj);
 }
 
-v8::Handle<v8::Value> Function::TableToInternal(const CHND container, const SAP_UC *name)
+v8::Handle<v8::Value> Function::TableToInternal(const CHND container, const SAP_UC *name, v8::Persistent<v8::External> functionHandle)
 {
   v8::HandleScope scope;
   RFC_ERROR_INFO errorInfo;
@@ -896,7 +896,7 @@ v8::Handle<v8::Value> Function::TableToInternal(const CHND container, const SAP_
     RfcMoveTo(tableHandle, i, nullptr);
     strucHandle = RfcGetCurrentRow(tableHandle, nullptr);
 
-    v8::Handle<v8::Value> line = this->StructureToInternal(container, strucHandle);
+    v8::Handle<v8::Value> line = this->StructureToInternal(container, strucHandle, functionHandle);
     // Bail out on exception
     if (IsException(line)) {
       return scope.Close(line);
