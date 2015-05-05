@@ -95,17 +95,18 @@ class Function : public node::ObjectWrap
     public:
     InvocationBaton() : function(nullptr), functionHandle(nullptr) { };
     ~InvocationBaton() {
-      RFC_ERROR_INFO errorInfo;
-
-      if (this->functionHandle) {
-        RfcDestroyFunction(this->functionHandle, &errorInfo);
-        this->functionHandle = nullptr;
-      }
-
       if (!this->cbInvoke.IsEmpty()) {
         this->cbInvoke.Dispose();
         this->cbInvoke.Clear();
       }
+    };
+
+    static void DestroyFunctionHandle(v8::Persistent<v8::Value> value, void *parameters) {
+      printf("Destructed\n");
+      v8::Handle<v8::External> wrappedFunctionHandle = v8::Handle<v8::External>::Cast(value);
+      RFC_FUNCTION_HANDLE functionHandle = static_cast<RFC_FUNCTION_HANDLE>(wrappedFunctionHandle->Value());
+      RFC_ERROR_INFO errorInfo;
+      RfcDestroyFunction(functionHandle, &errorInfo);
     };
 
     Function *function;

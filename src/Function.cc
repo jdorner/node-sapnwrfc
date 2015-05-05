@@ -236,6 +236,9 @@ void Function::EIO_AfterInvoke(uv_work_t *req)
 
   InvocationBaton *baton = static_cast<InvocationBaton*>(req->data);
   assert(baton != nullptr);
+  assert(baton->functionHandle != nullptr);
+
+  v8::Persistent<v8::External> wrappedFunctionHandle = v8::Persistent<v8::External>::New(v8::External::New(baton->functionHandle));
 
   v8::Local<v8::Value> argv[2];
   argv[0] = v8::Local<v8::Value>::New(v8::Null());
@@ -252,10 +255,8 @@ void Function::EIO_AfterInvoke(uv_work_t *req)
     }
   }
 
-  if (baton->functionHandle) {
-    RfcDestroyFunction(baton->functionHandle, &errorInfo);
-    baton->functionHandle = nullptr;
-  }
+  wrappedFunctionHandle.MakeWeak(nullptr, InvocationBaton::DestroyFunctionHandle);
+  baton->functionHandle = nullptr;
 
   v8::TryCatch try_catch;
 
