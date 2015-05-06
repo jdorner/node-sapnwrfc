@@ -50,7 +50,7 @@ class Function : public node::ObjectWrap
   static void EIO_Invoke(uv_work_t *req);
   static void EIO_AfterInvoke(uv_work_t *req);
 
-  v8::Handle<v8::Value> DoReceive(const CHND container, v8::Persistent<v8::External> functionHandle);
+  v8::Handle<v8::Value> DoReceive(const CHND container, v8::Handle<v8::External> functionHandle);
 
   v8::Handle<v8::Value> SetParameter(const CHND container, RFC_PARAMETER_DESC &desc, v8::Handle<v8::Value> value);
   v8::Handle<v8::Value> SetField(const CHND container, RFC_FIELD_DESC &desc, v8::Handle<v8::Value> value);
@@ -71,12 +71,14 @@ class Function : public node::ObjectWrap
   v8::Handle<v8::Value> DateToExternal(const CHND container, const SAP_UC *name, v8::Handle<v8::Value> value);
   v8::Handle<v8::Value> BCDToExternal(const CHND container, const SAP_UC *name, v8::Handle<v8::Value> value);
 
-  v8::Handle<v8::Value> GetParameter(const CHND container, const RFC_PARAMETER_DESC &desc, v8::Persistent<v8::External> functionHandle);
-  v8::Handle<v8::Value> GetField(const CHND container, const RFC_FIELD_DESC &desc, v8::Persistent<v8::External> functionHandle);
-  v8::Handle<v8::Value> GetValue(const CHND container, RFCTYPE type, const SAP_UC *name, unsigned len, v8::Persistent<v8::External> functionHandle);
-  v8::Handle<v8::Value> StructureToInternal(const CHND container, const SAP_UC *name, v8::Persistent<v8::External> functionHandle);
-  v8::Handle<v8::Value> StructureToInternal(const CHND container, const RFC_STRUCTURE_HANDLE struc, v8::Persistent<v8::External> functionHandle);
-  v8::Handle<v8::Value> TableToInternal(const CHND container, const SAP_UC *name, v8::Persistent<v8::External> functionHandle);
+  v8::Handle<v8::Value> GetParameter(const CHND container, const RFC_PARAMETER_DESC &desc, v8::Handle<v8::External> functionHandle);
+  v8::Handle<v8::Value> GetField(const CHND container, const RFC_FIELD_DESC &desc, v8::Handle<v8::External> functionHandle);
+  v8::Handle<v8::Value> GetValue(const CHND container, RFCTYPE type, const SAP_UC *name, unsigned len, v8::Handle<v8::External> functionHandle);
+  v8::Handle<v8::Value> StructureToInternal(const CHND container, const SAP_UC *name, v8::Handle<v8::External> functionHandle);
+  v8::Handle<v8::Value> StructureToInternal(const CHND container, const RFC_STRUCTURE_HANDLE struc, v8::Handle<v8::External> functionHandle);
+  v8::Handle<v8::Object> StructureToObject(const RFC_STRUCTURE_HANDLE struc, v8::Handle<v8::External> functionHandle, v8::Handle<v8::Value> fieldDescriptions);
+  v8::Handle<v8::Value> BuildFieldDescriptionMap(const RFC_STRUCTURE_HANDLE struc, v8::Handle<v8::External> functionHandle);
+  v8::Handle<v8::Value> TableToInternal(const CHND container, const SAP_UC *name, v8::Handle<v8::External> functionHandle);
   v8::Handle<v8::Value> StringToInternal(const CHND container, const SAP_UC *name);
   v8::Handle<v8::Value> XStringToInternal(const CHND container, const SAP_UC *name);
   v8::Handle<v8::Value> NumToInternal(const CHND container, const SAP_UC *name, unsigned len);
@@ -106,6 +108,7 @@ class Function : public node::ObjectWrap
       RFC_FUNCTION_HANDLE functionHandle = static_cast<RFC_FUNCTION_HANDLE>(wrappedFunctionHandle->Value());
       RFC_ERROR_INFO errorInfo;
       RfcDestroyFunction(functionHandle, &errorInfo);
+      value.Dispose();
     };
 
     Function *function;
@@ -116,6 +119,34 @@ class Function : public node::ObjectWrap
   };
 
   static v8::Persistent<v8::FunctionTemplate> ctorTemplate;
+  static v8::Persistent<v8::ObjectTemplate> structureTemplate;
+
+  static v8::Handle<v8::Value> StructureGetter(v8::Local<v8::String> property, const v8::AccessorInfo &info) {
+    v8::HandleScope scope;
+    Function *function = static_cast<Function *>(info.This()->GetPointerFromInternalField(0));
+    RFC_STRUCTURE_HANDLE struc = static_cast<RFC_STRUCTURE_HANDLE>(info.This()->GetPointerFromInternalField(1));
+    v8::Handle<v8::External> functionHandle = v8::Handle<v8::External>::Cast(info.This()->GetInternalField(2));
+    v8::Local<v8::Object> fieldDescriptions = v8::Local<v8::Object>::Cast(info.This()->GetInternalField(3));
+
+    if (!fieldDescriptions->Has(property)) {
+      v8::Handle<v8::Value> result;
+      return result;
+    }
+
+    v8::Handle<v8::External> wrappedFieldDesc = v8::Handle<v8::External>::Cast(fieldDescriptions->Get(property));
+    RFC_FIELD_DESC *fieldDesc = static_cast<RFC_FIELD_DESC *>(wrappedFieldDesc->Value());
+
+    return scope.Close(function->GetField(struc, *fieldDesc, functionHandle));
+  };
+
+  static void DestroyFieldDesc(v8::Persistent<v8::Value> value, void *parameters) {
+    v8::Handle<v8::External> wrappedFieldDesc = v8::Handle<v8::External>::Cast(value);
+    RFC_FIELD_DESC *fieldDesc = static_cast<RFC_FIELD_DESC *>(wrappedFieldDesc->Value());
+    if (fieldDesc) {
+      delete fieldDesc;
+    }
+    value.Dispose();
+  };
 
   //RFC_CONNECTION_HANDLE connectionHandle;
   Connection *connection;
