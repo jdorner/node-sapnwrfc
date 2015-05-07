@@ -1193,3 +1193,40 @@ v8::Handle<v8::Value> Function::BCDToInternal(const CHND container, const SAP_UC
 
   return scope.Close(value->ToNumber());
 }
+
+v8::Handle<v8::Value> Function::StructureGetter(v8::Local<v8::String> property, const v8::AccessorInfo &info) {
+  v8::HandleScope scope;
+  Function *function = static_cast<Function *>(info.This()->GetPointerFromInternalField(0));
+  RFC_STRUCTURE_HANDLE struc = static_cast<RFC_STRUCTURE_HANDLE>(info.This()->GetPointerFromInternalField(1));
+  v8::Handle<v8::External> functionHandle = v8::Handle<v8::External>::Cast(info.This()->GetInternalField(2));
+  v8::Local<v8::Object> fieldDescriptions = v8::Local<v8::Object>::Cast(info.This()->GetInternalField(3));
+
+  if (!fieldDescriptions->Has(property)) {
+    v8::Handle<v8::Value> result;
+    return result;
+  }
+
+  v8::Handle<v8::External> wrappedFieldDesc = v8::Handle<v8::External>::Cast(fieldDescriptions->Get(property));
+  RFC_FIELD_DESC *fieldDesc = static_cast<RFC_FIELD_DESC *>(wrappedFieldDesc->Value());
+
+  return scope.Close(function->GetField(struc, *fieldDesc, functionHandle));
+};
+
+v8::Handle<v8::Integer> Function::StructureQuery(v8::Local<v8::String> property, const v8::AccessorInfo &info) {
+  v8::HandleScope scope;
+  v8::Local<v8::Object> fieldDescriptions = v8::Local<v8::Object>::Cast(info.This()->GetInternalField(3));
+
+  if (!fieldDescriptions->Has(property)) {
+    v8::Handle<v8::Integer> result;
+    return result;
+  }
+
+  v8::Handle<v8::Integer> result(v8::Integer::New(v8::ReadOnly));
+  return scope.Close(result);
+};
+
+v8::Handle<v8::Array> Function::StructureEnumerate(const v8::AccessorInfo &info) {
+  v8::HandleScope scope;
+  v8::Local<v8::Object> fieldDescriptions = v8::Local<v8::Object>::Cast(info.This()->GetInternalField(3));
+  return scope.Close(fieldDescriptions->GetOwnPropertyNames());
+};

@@ -92,6 +92,10 @@ class Function : public node::ObjectWrap
   v8::Handle<v8::Value> TimeToInternal(const CHND container, const SAP_UC *name);
   v8::Handle<v8::Value> BCDToInternal(const CHND container, const SAP_UC *name);
 
+  static v8::Handle<v8::Value> StructureGetter(v8::Local<v8::String> property, const v8::AccessorInfo &info);
+  static v8::Handle<v8::Integer> StructureQuery(v8::Local<v8::String> property, const v8::AccessorInfo &info);
+  static v8::Handle<v8::Array> StructureEnumerate(const v8::AccessorInfo &info);
+
   class InvocationBaton
   {
     public:
@@ -120,43 +124,6 @@ class Function : public node::ObjectWrap
 
   static v8::Persistent<v8::FunctionTemplate> ctorTemplate;
   static v8::Persistent<v8::ObjectTemplate> structureTemplate;
-
-  static v8::Handle<v8::Value> StructureGetter(v8::Local<v8::String> property, const v8::AccessorInfo &info) {
-    v8::HandleScope scope;
-    Function *function = static_cast<Function *>(info.This()->GetPointerFromInternalField(0));
-    RFC_STRUCTURE_HANDLE struc = static_cast<RFC_STRUCTURE_HANDLE>(info.This()->GetPointerFromInternalField(1));
-    v8::Handle<v8::External> functionHandle = v8::Handle<v8::External>::Cast(info.This()->GetInternalField(2));
-    v8::Local<v8::Object> fieldDescriptions = v8::Local<v8::Object>::Cast(info.This()->GetInternalField(3));
-
-    if (!fieldDescriptions->Has(property)) {
-      v8::Handle<v8::Value> result;
-      return result;
-    }
-
-    v8::Handle<v8::External> wrappedFieldDesc = v8::Handle<v8::External>::Cast(fieldDescriptions->Get(property));
-    RFC_FIELD_DESC *fieldDesc = static_cast<RFC_FIELD_DESC *>(wrappedFieldDesc->Value());
-
-    return scope.Close(function->GetField(struc, *fieldDesc, functionHandle));
-  };
-
-  static v8::Handle<v8::Integer> StructureQuery(v8::Local<v8::String> property, const v8::AccessorInfo &info) {
-    v8::HandleScope scope;
-    v8::Local<v8::Object> fieldDescriptions = v8::Local<v8::Object>::Cast(info.This()->GetInternalField(3));
-
-    if (!fieldDescriptions->Has(property)) {
-      v8::Handle<v8::Integer> result;
-      return result;
-    }
-
-    v8::Handle<v8::Integer> result(v8::Integer::New(v8::ReadOnly));
-    return scope.Close(result);
-  };
-
-  static v8::Handle<v8::Array> StructureEnumerate(const v8::AccessorInfo &info) {
-    v8::HandleScope scope;
-    v8::Local<v8::Object> fieldDescriptions = v8::Local<v8::Object>::Cast(info.This()->GetInternalField(3));
-    return scope.Close(fieldDescriptions->GetOwnPropertyNames());
-  };
 
   static void DestroyFieldDesc(v8::Persistent<v8::Value> value, void *parameters) {
     v8::Handle<v8::External> wrappedFieldDesc = v8::Handle<v8::External>::Cast(value);
