@@ -598,7 +598,7 @@ v8::Local<v8::Value> Function::NumToExternal(const CHND container, const SAP_UC 
   }
 
   v8::String::Value valueU16(value->ToString());
-  if (valueU16.length() > len) {
+  if (valueU16.length() < 0 || (static_cast<unsigned int>(valueU16.length()) > len)) {
     return RfcError("Argument exceeds maximum length: ", (const uint16_t*)name);
   }
 
@@ -621,7 +621,7 @@ v8::Local<v8::Value> Function::CharToExternal(const CHND container, const SAP_UC
   }
 
   v8::String::Value valueU16(value->ToString());
-  if (valueU16.length() > len) {
+  if (valueU16.length() < 0 || (static_cast<unsigned int>(valueU16.length()) > len)) {
     return RfcError("Argument exceeds maximum length: ", (const uint16_t*)name);
   }
 
@@ -649,7 +649,7 @@ v8::Local<v8::Value> Function::ByteToExternal(const CHND container, const SAP_UC
   v8::String::AsciiValue val(value->ToString());
 #endif
 
-  if (val.length() > len) {
+  if (val.length() < 0 || (static_cast<unsigned int>(val.length()) > len)) {
     return RfcError("Argument exceeds maximum length: ", (const uint16_t*)name);
   }
 
