@@ -49,7 +49,13 @@ void Function::Init(v8::Handle<v8::Object> target)
 
   Function::structureTemplate = v8::Persistent<v8::ObjectTemplate>::New(v8::ObjectTemplate::New());
   Function::structureTemplate->SetInternalFieldCount(4);
-  Function::structureTemplate->SetNamedPropertyHandler(Function::StructureGetter);
+  Function::structureTemplate->SetNamedPropertyHandler(
+    Function::StructureGetter,
+    nullptr,
+    Function::StructureQuery,
+    nullptr,
+    Function::StructureEnumerate
+  );
 }
 
 v8::Handle<v8::Value> Function::NewInstance(Connection &connection, const v8::Arguments &args)

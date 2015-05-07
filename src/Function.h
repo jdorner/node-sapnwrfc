@@ -139,6 +139,25 @@ class Function : public node::ObjectWrap
     return scope.Close(function->GetField(struc, *fieldDesc, functionHandle));
   };
 
+  static v8::Handle<v8::Integer> StructureQuery(v8::Local<v8::String> property, const v8::AccessorInfo &info) {
+    v8::HandleScope scope;
+    v8::Local<v8::Object> fieldDescriptions = v8::Local<v8::Object>::Cast(info.This()->GetInternalField(3));
+
+    if (!fieldDescriptions->Has(property)) {
+      v8::Handle<v8::Integer> result;
+      return result;
+    }
+
+    v8::Handle<v8::Integer> result(v8::Integer::New(v8::ReadOnly));
+    return scope.Close(result);
+  };
+
+  static v8::Handle<v8::Array> StructureEnumerate(const v8::AccessorInfo &info) {
+    v8::HandleScope scope;
+    v8::Local<v8::Object> fieldDescriptions = v8::Local<v8::Object>::Cast(info.This()->GetInternalField(3));
+    return scope.Close(fieldDescriptions->GetOwnPropertyNames());
+  };
+
   static void DestroyFieldDesc(v8::Persistent<v8::Value> value, void *parameters) {
     v8::Handle<v8::External> wrappedFieldDesc = v8::Handle<v8::External>::Cast(value);
     RFC_FIELD_DESC *fieldDesc = static_cast<RFC_FIELD_DESC *>(wrappedFieldDesc->Value());
