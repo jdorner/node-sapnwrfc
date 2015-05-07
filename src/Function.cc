@@ -916,6 +916,10 @@ v8::Handle<v8::Value> Function::TableToInternal(const CHND container, const SAP_
   // Create array holding table lines
   v8::Local<v8::Array> obj = v8::Array::New();
 
+  if (rowCount == 0) {
+    return scope.Close(obj);
+  }
+
   RfcMoveToFirstRow(tableHandle, nullptr);
   v8::Handle<v8::Value> fieldDescs = this->BuildFieldDescriptionMap(RfcGetCurrentRow(tableHandle, nullptr), functionHandle);
   if (IsException(fieldDescs)) {
