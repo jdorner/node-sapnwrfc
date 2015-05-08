@@ -93,7 +93,9 @@ class Function : public node::ObjectWrap
   v8::Handle<v8::Value> BCDToInternal(const CHND container, const SAP_UC *name);
 
   static v8::Handle<v8::Value> StructureGetter(v8::Local<v8::String> property, const v8::AccessorInfo &info);
+  static v8::Handle<v8::Value> StructureSetter(v8::Local<v8::String> property, v8::Local<v8::Value> value, const v8::AccessorInfo &info);
   static v8::Handle<v8::Integer> StructureQuery(v8::Local<v8::String> property, const v8::AccessorInfo &info);
+  static v8::Handle<v8::Boolean> StructureDeleter(v8::Local<v8::String> property, const v8::AccessorInfo &info);
   static v8::Handle<v8::Array> StructureEnumerate(const v8::AccessorInfo &info);
 
   class InvocationBaton

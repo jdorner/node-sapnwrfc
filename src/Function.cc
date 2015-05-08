@@ -51,9 +51,9 @@ void Function::Init(v8::Handle<v8::Object> target)
   Function::structureTemplate->SetInternalFieldCount(4);
   Function::structureTemplate->SetNamedPropertyHandler(
     Function::StructureGetter,
-    nullptr,
+    Function::StructureSetter,
     Function::StructureQuery,
-    nullptr,
+    Function::StructureDeleter,
     Function::StructureEnumerate
   );
 }
@@ -1194,7 +1194,8 @@ v8::Handle<v8::Value> Function::BCDToInternal(const CHND container, const SAP_UC
   return scope.Close(value->ToNumber());
 }
 
-v8::Handle<v8::Value> Function::StructureGetter(v8::Local<v8::String> property, const v8::AccessorInfo &info) {
+v8::Handle<v8::Value> Function::StructureGetter(v8::Local<v8::String> property, const v8::AccessorInfo &info)
+{
   v8::HandleScope scope;
   Function *function = static_cast<Function *>(info.This()->GetPointerFromInternalField(0));
   RFC_STRUCTURE_HANDLE struc = static_cast<RFC_STRUCTURE_HANDLE>(info.This()->GetPointerFromInternalField(1));
@@ -1212,7 +1213,21 @@ v8::Handle<v8::Value> Function::StructureGetter(v8::Local<v8::String> property, 
   return scope.Close(function->GetField(struc, *fieldDesc, functionHandle));
 };
 
-v8::Handle<v8::Integer> Function::StructureQuery(v8::Local<v8::String> property, const v8::AccessorInfo &info) {
+v8::Handle<v8::Value> Function::StructureSetter(v8::Local<v8::String> property, v8::Local<v8::Value> value, const v8::AccessorInfo &info)
+{
+  v8::HandleScope scope;
+  v8::Local<v8::Object> fieldDescriptions = v8::Local<v8::Object>::Cast(info.This()->GetInternalField(3));
+
+  if (fieldDescriptions->Has(property)) {
+    return scope.Close(v8::ThrowException(v8::String::New("Cannot modify properties of SAP structures")));
+  }
+
+  v8::Local<v8::Value> result;
+  return scope.Close(result);
+};
+
+v8::Handle<v8::Integer> Function::StructureQuery(v8::Local<v8::String> property, const v8::AccessorInfo &info)
+{
   v8::HandleScope scope;
   v8::Local<v8::Object> fieldDescriptions = v8::Local<v8::Object>::Cast(info.This()->GetInternalField(3));
 
@@ -1225,8 +1240,22 @@ v8::Handle<v8::Integer> Function::StructureQuery(v8::Local<v8::String> property,
   return scope.Close(result);
 };
 
-v8::Handle<v8::Array> Function::StructureEnumerate(const v8::AccessorInfo &info) {
+v8::Handle<v8::Array> Function::StructureEnumerate(const v8::AccessorInfo &info)
+{
   v8::HandleScope scope;
   v8::Local<v8::Object> fieldDescriptions = v8::Local<v8::Object>::Cast(info.This()->GetInternalField(3));
   return scope.Close(fieldDescriptions->GetOwnPropertyNames());
+};
+
+v8::Handle<v8::Boolean> Function::StructureDeleter(v8::Local<v8::String> property, const v8::AccessorInfo &info)
+{
+  v8::HandleScope scope;
+  v8::Local<v8::Object> fieldDescriptions = v8::Local<v8::Object>::Cast(info.This()->GetInternalField(3));
+
+  if (fieldDescriptions->Has(property)) {
+    return scope.Close(v8::Boolean::New(false));
+  }
+
+  v8::Local<v8::Boolean> result;
+  return scope.Close(result);
 };
