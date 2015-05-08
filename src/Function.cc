@@ -1,4 +1,4 @@
-/* 
+/*
 -----------------------------------------------------------------------------
 Copyright (c) 2011 Joachim Dorner
 
@@ -25,6 +25,7 @@ SOFTWARE.
 #include "Function.h"
 
 v8::Persistent<v8::FunctionTemplate> Function::ctorTemplate;
+v8::Persistent<v8::ObjectTemplate> Function::structureTemplate;
 
 Function::Function(): connection(nullptr), functionDescHandle(nullptr)
 {
@@ -37,7 +38,7 @@ Function::~Function()
 void Function::Init(v8::Handle<v8::Object> target)
 {
   v8::HandleScope scope;
-  
+
   ctorTemplate = v8::Persistent<v8::FunctionTemplate>::New(v8::FunctionTemplate::New(New));
   ctorTemplate->InstanceTemplate()->SetInternalFieldCount(1);
   ctorTemplate->SetClassName(v8::String::NewSymbol("Function"));
@@ -45,6 +46,16 @@ void Function::Init(v8::Handle<v8::Object> target)
   NODE_SET_PROTOTYPE_METHOD(ctorTemplate, "Invoke", Function::Invoke);
 
   target->Set(v8::String::NewSymbol("Function"), ctorTemplate->GetFunction());
+
+  Function::structureTemplate = v8::Persistent<v8::ObjectTemplate>::New(v8::ObjectTemplate::New());
+  Function::structureTemplate->SetInternalFieldCount(4);
+  Function::structureTemplate->SetNamedPropertyHandler(
+    Function::StructureGetter,
+    Function::StructureSetter,
+    Function::StructureQuery,
+    Function::StructureDeleter,
+    Function::StructureEnumerate
+  );
 }
 
 v8::Handle<v8::Value> Function::NewInstance(Connection &connection, const v8::Arguments &args)
@@ -53,7 +64,7 @@ v8::Handle<v8::Value> Function::NewInstance(Connection &connection, const v8::Ar
   unsigned int parmCount;
   RFC_RC rc = RFC_OK;
   RFC_ERROR_INFO errorInfo;
-  
+
   v8::Local<v8::Object> func = ctorTemplate->GetFunction()->NewInstance();
   Function *self = node::ObjectWrap::Unwrap<Function>(func);
 
@@ -73,7 +84,7 @@ v8::Handle<v8::Value> Function::NewInstance(Connection &connection, const v8::Ar
   if (self->functionDescHandle == nullptr) {
     return RFC_ERROR(errorInfo);
   }
-  
+
   rc = RfcGetParameterCount(self->functionDescHandle, &parmCount, &errorInfo);
   if (rc != RFC_OK) {
     return RFC_ERROR(errorInfo);
@@ -82,7 +93,7 @@ v8::Handle<v8::Value> Function::NewInstance(Connection &connection, const v8::Ar
   // Dynamically add parameters to JS object
   for (unsigned int i = 0; i < parmCount; i++) {
     RFC_PARAMETER_DESC parmDesc;
-    
+
     rc = RfcGetParameterDescByIndex(self->functionDescHandle, i, &parmDesc, &errorInfo);
     if (rc != RFC_OK) {
       return RFC_ERROR(errorInfo);
@@ -113,7 +124,7 @@ v8::Handle<v8::Value> Function::Invoke(const v8::Arguments &args)
   RFC_RC rc = RFC_OK;
   unsigned int parmCount;
   RFC_ERROR_INFO errorInfo;
-  
+
   Function *self = node::ObjectWrap::Unwrap<Function>(args.This());
   assert(self != nullptr);
 
@@ -134,7 +145,7 @@ v8::Handle<v8::Value> Function::Invoke(const v8::Arguments &args)
 
   // Store callback
   baton->cbInvoke = v8::Persistent<v8::Function>::New(v8::Local<v8::Function>::Cast(args[1]));
-  
+
   baton->functionHandle = RfcCreateFunction(self->functionDescHandle, &errorInfo);
   if (baton->functionHandle == nullptr) {
     delete baton;
@@ -151,7 +162,7 @@ v8::Handle<v8::Value> Function::Invoke(const v8::Arguments &args)
 
   for (unsigned int i = 0; i < parmCount; i++) {
     RFC_PARAMETER_DESC parmDesc;
-    
+
     rc = RfcGetParameterDescByIndex(self->functionDescHandle, i, &parmDesc, &errorInfo);
     if (rc != RFC_OK) {
       delete baton;
@@ -210,7 +221,7 @@ void Function::EIO_Invoke(uv_work_t *req)
 {
   RFC_RC rc = RFC_OK;
   int isValid;
-  
+
   InvocationBaton *baton = static_cast<InvocationBaton*>(req->data);
 
   assert(baton != nullptr);
@@ -225,7 +236,7 @@ void Function::EIO_Invoke(uv_work_t *req)
   if (baton->errorInfo.code == RFC_INVALID_HANDLE) {
     rc = RfcIsConnectionHandleValid(baton->connection->GetConnectionHandle(), &isValid, &baton->errorInfo);
   }
-  
+
   baton->connection->UnlockMutex();
 }
 
@@ -233,18 +244,21 @@ void Function::EIO_AfterInvoke(uv_work_t *req)
 {
   v8::HandleScope scope;
   RFC_ERROR_INFO errorInfo;
- 
+
   InvocationBaton *baton = static_cast<InvocationBaton*>(req->data);
   assert(baton != nullptr);
-  
+  assert(baton->functionHandle != nullptr);
+
+  v8::Persistent<v8::External> wrappedFunctionHandle = v8::Persistent<v8::External>::New(v8::External::New(baton->functionHandle));
+
   v8::Local<v8::Value> argv[2];
   argv[0] = v8::Local<v8::Value>::New(v8::Null());
   argv[1] = v8::Local<v8::Value>::New(v8::Null());
-  
+
   if (baton->errorInfo.code != RFC_OK) {
     argv[0] = v8::Local<v8::Value>::New(RfcError(baton->errorInfo));
   } else {
-    v8::Local<v8::Value> result = v8::Local<v8::Value>::New(baton->function->DoReceive(baton->functionHandle));
+    v8::Local<v8::Value> result = v8::Local<v8::Value>::New(baton->function->DoReceive(baton->functionHandle, wrappedFunctionHandle));
     if (IsException(result)) {
       argv[0] = result;
     } else {
@@ -252,10 +266,8 @@ void Function::EIO_AfterInvoke(uv_work_t *req)
     }
   }
 
-  if (baton->functionHandle) {
-    RfcDestroyFunction(baton->functionHandle, &errorInfo);
-    baton->functionHandle = nullptr;
-  }
+  wrappedFunctionHandle.MakeWeak(nullptr, InvocationBaton::DestroyFunctionHandle);
+  baton->functionHandle = nullptr;
 
   v8::TryCatch try_catch;
 
@@ -270,13 +282,13 @@ void Function::EIO_AfterInvoke(uv_work_t *req)
   }
 }
 
-v8::Handle<v8::Value> Function::DoReceive(const CHND container)
+v8::Handle<v8::Value> Function::DoReceive(const CHND container, v8::Handle<v8::External> functionHandle)
 {
   v8::HandleScope scope;
   RFC_RC rc = RFC_OK;
   RFC_ERROR_INFO errorInfo;
   unsigned int parmCount;
-  
+
   v8::Local<v8::Object> result = v8::Object::New();
 
   // Get resulting values for exporting/changing/table parameters
@@ -288,7 +300,7 @@ v8::Handle<v8::Value> Function::DoReceive(const CHND container)
   for (unsigned int i = 0; i < parmCount; i++) {
     RFC_PARAMETER_DESC parmDesc;
     v8::Handle<v8::Value> parmValue;
-    
+
     rc = RfcGetParameterDescByIndex(this->functionDescHandle, i, &parmDesc, &errorInfo);
     if (rc != RFC_OK) {
       return RFC_ERROR(errorInfo);
@@ -300,7 +312,7 @@ v8::Handle<v8::Value> Function::DoReceive(const CHND container)
       case RFC_CHANGING:
       case RFC_TABLES:
       case RFC_EXPORT:
-        parmValue = this->GetParameter(container, parmDesc);
+        parmValue = this->GetParameter(container, parmDesc, functionHandle);
         if (IsException(parmValue)) {
           return ThrowException(parmValue);
         }
@@ -387,7 +399,7 @@ v8::Handle<v8::Value> Function::SetValue(const CHND container, RFCTYPE type, con
     return scope.Close(result);
   }
 
-  return scope.Close(v8::Null());  
+  return scope.Close(v8::Null());
 }
 
 v8::Handle<v8::Value> Function::StructureToExternal(const CHND container, const SAP_UC *name, v8::Handle<v8::Value> value)
@@ -473,7 +485,7 @@ v8::Handle<v8::Value> Function::TableToExternal(const CHND container, const SAP_
 
   for (uint32_t i = 0; i < rowCount; i++){
     strucHandle = RfcAppendNewRow(tableHandle, nullptr);
-    
+
     v8::Handle<v8::Value> line = this->StructureToExternal(container, strucHandle, source->CloneElementAt(i));
     // Bail out on exception
     if (IsException(line)) {
@@ -533,10 +545,10 @@ v8::Handle<v8::Value> Function::NumToExternal(const CHND container, const SAP_UC
   }
 
   v8::String::Value valueU16(value->ToString());
-  if (valueU16.length() > len) {
+  if (valueU16.length() < 0 || (static_cast<unsigned int>(valueU16.length()) > len)) {
     return RFC_ERROR("Argument exceeds maximum length: ", v8::String::New((const uint16_t*)(name)));
   }
-  
+
   rc = RfcSetNum(container, name, (const RFC_NUM*)*valueU16, valueU16.length(), &errorInfo);
   if (rc != RFC_OK) {
     return RFC_ERROR(errorInfo);
@@ -556,7 +568,7 @@ v8::Handle<v8::Value> Function::CharToExternal(const CHND container, const SAP_U
   }
 
   v8::String::Value valueU16(value->ToString());
-  if (valueU16.length() > len) {
+  if (valueU16.length() < 0 || (static_cast<unsigned int>(valueU16.length()) > len)) {
     return RFC_ERROR("Argument exceeds maximum length: ", v8::String::New((const uint16_t*)(name)));
   }
 
@@ -564,7 +576,7 @@ v8::Handle<v8::Value> Function::CharToExternal(const CHND container, const SAP_U
   if (rc != RFC_OK) {
     return RFC_ERROR(errorInfo);
   }
-  
+
   return scope.Close(v8::Null());
 }
 
@@ -579,15 +591,15 @@ v8::Handle<v8::Value> Function::ByteToExternal(const CHND container, const SAP_U
   }
 
   v8::String::AsciiValue valueAscii(value->ToString());
-  if (valueAscii.length() > len) {
+  if (valueAscii.length() < 0 || (static_cast<unsigned int>(valueAscii.length()) > len)) {
     return RFC_ERROR("Argument exceeds maximum length: ", v8::String::New((const uint16_t*)(name)));
   }
-  
+
   rc = RfcSetBytes(container, name, reinterpret_cast<SAP_RAW*>(*valueAscii), len, &errorInfo);
   if (rc != RFC_OK) {
     return RFC_ERROR(errorInfo);
   }
-  
+
   return scope.Close(v8::Null());
 }
 
@@ -690,7 +702,7 @@ v8::Handle<v8::Value> Function::DateToExternal(const CHND container, const SAP_U
   if (str->Length() != 8) {
     return RFC_ERROR("Invalid date format: ", v8::String::New((const uint16_t*)(name)));
   }
-  
+
   v8::String::Value rfcValue(str);
   assert(*rfcValue);
   RFC_RC rc = RfcSetDate(container, name, (const RFC_CHAR*)*rfcValue, &errorInfo);
@@ -736,28 +748,28 @@ v8::Handle<v8::Value> Function::BCDToExternal(const CHND container, const SAP_UC
   }
 
   v8::String::Value valueU16(value->ToString());
-    
+
   rc = RfcSetString(container, name, (const SAP_UC*)*valueU16, valueU16.length(), &errorInfo);
   if (rc != RFC_OK) {
     return RFC_ERROR(errorInfo);
   }
-  
+
   return scope.Close(v8::Null());
 }
 
-v8::Handle<v8::Value> Function::GetParameter(const CHND container, const RFC_PARAMETER_DESC &desc)
+v8::Handle<v8::Value> Function::GetParameter(const CHND container, const RFC_PARAMETER_DESC &desc, v8::Handle<v8::External> functionHandle)
 {
   v8::HandleScope scope;
-  return scope.Close(this->GetValue(container, desc.type, desc.name, desc.nucLength));
+  return scope.Close(this->GetValue(container, desc.type, desc.name, desc.nucLength, functionHandle));
 }
 
-v8::Handle<v8::Value> Function::GetField(const CHND container, const RFC_FIELD_DESC &desc)
+v8::Handle<v8::Value> Function::GetField(const CHND container, const RFC_FIELD_DESC &desc, v8::Handle<v8::External> functionHandle)
 {
   v8::HandleScope scope;
-  return scope.Close(this->GetValue(container, desc.type, desc.name, desc.nucLength));
+  return scope.Close(this->GetValue(container, desc.type, desc.name, desc.nucLength, functionHandle));
 }
 
-v8::Handle<v8::Value> Function::GetValue(const CHND container, RFCTYPE type, const SAP_UC *name, unsigned len)
+v8::Handle<v8::Value> Function::GetValue(const CHND container, RFCTYPE type, const SAP_UC *name, unsigned len, v8::Handle<v8::External> functionHandle)
 {
   v8::HandleScope scope;
   v8::Handle<v8::Value> value = v8::Null();
@@ -794,10 +806,10 @@ v8::Handle<v8::Value> Function::GetValue(const CHND container, RFCTYPE type, con
       value = this->Int2ToInternal(container, name);
       break;
     case RFCTYPE_STRUCTURE:
-      value = this->StructureToInternal(container, name);
+      value = this->StructureToInternal(container, name, functionHandle);
       break;
     case RFCTYPE_TABLE:
-      value = this->TableToInternal(container, name);
+      value = this->TableToInternal(container, name, functionHandle);
       break;
     case RFCTYPE_STRING:
       value = this->StringToInternal(container, name);
@@ -815,7 +827,7 @@ v8::Handle<v8::Value> Function::GetValue(const CHND container, RFCTYPE type, con
   return scope.Close(value);
 }
 
-v8::Handle<v8::Value> Function::StructureToInternal(const CHND container, const SAP_UC *name)
+v8::Handle<v8::Value> Function::StructureToInternal(const CHND container, const SAP_UC *name, v8::Handle<v8::External> functionHandle)
 {
   v8::HandleScope scope;
   RFC_ERROR_INFO errorInfo;
@@ -827,55 +839,74 @@ v8::Handle<v8::Value> Function::StructureToInternal(const CHND container, const 
     return RFC_ERROR(errorInfo);
   }
 
-  return scope.Close(this->StructureToInternal(container, strucHandle));
+  return scope.Close(this->StructureToInternal(container, strucHandle, functionHandle));
 }
 
-v8::Handle<v8::Value> Function::StructureToInternal(const CHND container, const RFC_STRUCTURE_HANDLE struc)
+v8::Handle<v8::Value> Function::StructureToInternal(const CHND container, const RFC_STRUCTURE_HANDLE struc, v8::Handle<v8::External> functionHandle)
 {
   v8::HandleScope scope;
+  v8::Handle<v8::Value> fieldDescriptions = this->BuildFieldDescriptionMap(struc, functionHandle);
+  if (IsException(fieldDescriptions)) {
+    scope.Close(fieldDescriptions);
+  }
+  return scope.Close(this->StructureToObject(struc, functionHandle, fieldDescriptions));
+}
+
+v8::Handle<v8::Object> Function::StructureToObject(const RFC_STRUCTURE_HANDLE struc, v8::Handle<v8::External> functionHandle, v8::Handle<v8::Value> fieldDescriptions)
+{
+  v8::Local<v8::Object> result = structureTemplate->NewInstance();
+  result->SetPointerInInternalField(0, this);
+  result->SetPointerInInternalField(1, struc);
+  result->SetInternalField(2, functionHandle);
+  result->SetInternalField(3, fieldDescriptions);
+
+  return result;
+}
+
+v8::Handle<v8::Value> Function::BuildFieldDescriptionMap(const RFC_STRUCTURE_HANDLE struc, v8::Handle<v8::External> functionHandle)
+{
   RFC_ERROR_INFO errorInfo;
   RFC_RC rc = RFC_OK;
   RFC_TYPE_DESC_HANDLE typeHandle;
-  RFC_FIELD_DESC fieldDesc;
+  RFC_FIELD_DESC *fieldDesc;
   unsigned fieldCount;
 
   typeHandle = RfcDescribeType(struc, &errorInfo);
   assert(typeHandle);
   if (typeHandle == nullptr) {
-    return RFC_ERROR(errorInfo);
+    return RfcError(errorInfo);
   }
 
   rc = RfcGetFieldCount(typeHandle, &fieldCount, &errorInfo);
   if (rc != RFC_OK) {
-    return RFC_ERROR(errorInfo);
+    return RfcError(errorInfo);
   }
 
-  v8::Local<v8::Object> obj = v8::Object::New();
+  v8::Local<v8::Object> result = v8::Object::New();
+  // Keep a reference to functionHandle (so SAP function result is not freed)
+  result->SetHiddenValue(v8::String::NewSymbol("__fhr__"), functionHandle);
 
   for (unsigned int i = 0; i < fieldCount; i++) {
-    rc = RfcGetFieldDescByIndex(typeHandle, i, &fieldDesc, &errorInfo);
+    fieldDesc = new RFC_FIELD_DESC;
+    rc = RfcGetFieldDescByIndex(typeHandle, i, fieldDesc, &errorInfo);
     if (rc != RFC_OK) {
-      return RFC_ERROR(errorInfo);
+      return RfcError(errorInfo);
     }
 
-    v8::Handle<v8::Value> value = this->GetField(struc, fieldDesc);
-    // Bail out on exception
-    if (IsException(value)) {
-      return scope.Close(value);
-    }
-    obj->Set(v8::String::New((const uint16_t*)(fieldDesc.name)), value);
+    v8::Persistent<v8::External> value = v8::Persistent<v8::External>::New(v8::External::New(fieldDesc));
+    result->Set(v8::String::New((const uint16_t*)(fieldDesc->name)), value);
+    value.MakeWeak(nullptr, Function::DestroyFieldDesc);
   }
 
-  return scope.Close(obj);
+  return result;
 }
 
-v8::Handle<v8::Value> Function::TableToInternal(const CHND container, const SAP_UC *name)
+v8::Handle<v8::Value> Function::TableToInternal(const CHND container, const SAP_UC *name, v8::Handle<v8::External> functionHandle)
 {
   v8::HandleScope scope;
   RFC_ERROR_INFO errorInfo;
   RFC_RC rc = RFC_OK;
   RFC_TABLE_HANDLE tableHandle;
-  RFC_STRUCTURE_HANDLE strucHandle;
   unsigned rowCount;
 
   rc = RfcGetTable(container, name, &tableHandle, &errorInfo);
@@ -890,17 +921,20 @@ v8::Handle<v8::Value> Function::TableToInternal(const CHND container, const SAP_
 
   // Create array holding table lines
   v8::Local<v8::Array> obj = v8::Array::New();
-  
+
+  if (rowCount == 0) {
+    return scope.Close(obj);
+  }
+
+  RfcMoveToFirstRow(tableHandle, nullptr);
+  v8::Handle<v8::Value> fieldDescs = this->BuildFieldDescriptionMap(RfcGetCurrentRow(tableHandle, nullptr), functionHandle);
+  if (IsException(fieldDescs)) {
+    return scope.Close(fieldDescs);
+  }
+
   for (unsigned int i = 0; i < rowCount; i++){
     RfcMoveTo(tableHandle, i, nullptr);
-    strucHandle = RfcGetCurrentRow(tableHandle, nullptr);
-
-    v8::Handle<v8::Value> line = this->StructureToInternal(container, strucHandle);
-    // Bail out on exception
-    if (IsException(line)) {
-      return scope.Close(line);
-    }
-    obj->Set(v8::Integer::New(i), line);
+    obj->Set(v8::Integer::New(i), this->StructureToObject(RfcGetCurrentRow(tableHandle, nullptr), functionHandle, fieldDescs));
   }
 
   return scope.Close(obj);
@@ -925,17 +959,17 @@ v8::Handle<v8::Value> Function::StringToInternal(const CHND container, const SAP
   SAP_UC *buffer = static_cast<SAP_UC*>(malloc((strLen + 1) * sizeof(SAP_UC)));
   assert(buffer);
   memset(buffer, 0, (strLen + 1) * sizeof(SAP_UC));
-  
+
   rc = RfcGetString(container, name, buffer, strLen + 1, &retStrLen, &errorInfo);
   if (rc != RFC_OK) {
     free(buffer);
     return RFC_ERROR(errorInfo);
   }
-  
+
   v8::Local<v8::String> value = v8::String::New((const uint16_t*)(buffer));
 
   free(buffer);
-      
+
   return scope.Close(value);
 }
 
@@ -958,17 +992,17 @@ v8::Handle<v8::Value> Function::XStringToInternal(const CHND container, const SA
   SAP_RAW *buffer = static_cast<SAP_RAW*>(malloc(strLen * sizeof(SAP_RAW)));
   assert(buffer);
   memset(buffer, 0, strLen * sizeof(SAP_RAW));
-  
+
   rc = RfcGetXString(container, name, buffer, strLen, &retStrLen, &errorInfo);
   if (rc != RFC_OK) {
     free(buffer);
     return RFC_ERROR(errorInfo);
   }
-  
+
   v8::Local<v8::String> value = v8::String::New(reinterpret_cast<char*>(buffer), strLen);
 
   free(buffer);
-      
+
   return scope.Close(value);
 }
 
@@ -980,17 +1014,17 @@ v8::Handle<v8::Value> Function::NumToInternal(const CHND container, const SAP_UC
   RFC_NUM *buffer = static_cast<RFC_NUM*>(malloc((len + 1) * sizeof(RFC_NUM)));
   assert(buffer);
   memset(buffer, 0, (len + 1) * sizeof(RFC_NUM));
-  
+
   RFC_RC rc = RfcGetNum(container, name, buffer, len, &errorInfo);
   if (rc != RFC_OK) {
     free(buffer);
     return RFC_ERROR(errorInfo);
   }
-  
+
   v8::Local<v8::String> value = v8::String::New((const uint16_t*)(buffer));
 
   free(buffer);
-      
+
   return scope.Close(value);
 }
 
@@ -1002,17 +1036,17 @@ v8::Handle<v8::Value> Function::CharToInternal(const CHND container, const SAP_U
   RFC_CHAR *buffer = static_cast<RFC_CHAR*>(malloc((len + 1) * sizeof(RFC_CHAR)));
   assert(buffer);
   memset(buffer, 0, (len + 1) * sizeof(RFC_CHAR));
-  
+
   RFC_RC rc = RfcGetChars(container, name, buffer, len, &errorInfo);
   if (rc != RFC_OK) {
     free(buffer);
     return RFC_ERROR(errorInfo);
   }
-  
+
   v8::Local<v8::String> value = v8::String::New((const uint16_t*)(buffer));
 
   free(buffer);
-      
+
   return scope.Close(value);
 }
 
@@ -1024,17 +1058,17 @@ v8::Handle<v8::Value> Function::ByteToInternal(const CHND container, const SAP_U
   RFC_BYTE *buffer = static_cast<RFC_BYTE*>(malloc(len * sizeof(RFC_BYTE)));
   assert(buffer);
   memset(buffer, 0, len * sizeof(RFC_BYTE));
-  
+
   RFC_RC rc = RfcGetBytes(container, name, buffer, len, &errorInfo);
   if (rc != RFC_OK) {
     free(buffer);
     return RFC_ERROR(errorInfo);
   }
-  
+
   v8::Local<v8::String> value = v8::String::New(reinterpret_cast<const char*>(buffer));
 
   free(buffer);
-      
+
   return scope.Close(value);
 }
 
@@ -1124,7 +1158,7 @@ v8::Handle<v8::Value> Function::TimeToInternal(const CHND container, const SAP_U
 
   assert(sizeof(RFC_CHAR) > 0); // Shouldn't occur except in case of a compiler glitch
   v8::Local<v8::String> value = v8::String::New((const uint16_t*)(time), sizeof(RFC_TIME) / sizeof(RFC_CHAR));
-      
+
   return scope.Close(value);
 }
 
@@ -1141,7 +1175,7 @@ v8::Handle<v8::Value> Function::BCDToInternal(const CHND container, const SAP_UC
     buffer = static_cast<SAP_UC*>(malloc((strLen + 1) * sizeof(SAP_UC)));
     assert(buffer);
     memset(buffer, 0, (strLen + 1) * sizeof(SAP_UC));
-  
+
     rc = RfcGetString(container, name, buffer, strLen + 1, &retStrLen, &errorInfo);
 
     if (rc == RFC_BUFFER_TOO_SMALL) {
@@ -1152,10 +1186,76 @@ v8::Handle<v8::Value> Function::BCDToInternal(const CHND container, const SAP_UC
       return RFC_ERROR(errorInfo);
     }
   } while (rc == RFC_BUFFER_TOO_SMALL);
-  
+
   v8::Local<v8::String> value = v8::String::New((const uint16_t*)(buffer), retStrLen);
 
   free(buffer);
-      
+
   return scope.Close(value->ToNumber());
 }
+
+v8::Handle<v8::Value> Function::StructureGetter(v8::Local<v8::String> property, const v8::AccessorInfo &info)
+{
+  v8::HandleScope scope;
+  Function *function = static_cast<Function *>(info.This()->GetPointerFromInternalField(0));
+  RFC_STRUCTURE_HANDLE struc = static_cast<RFC_STRUCTURE_HANDLE>(info.This()->GetPointerFromInternalField(1));
+  v8::Handle<v8::External> functionHandle = v8::Handle<v8::External>::Cast(info.This()->GetInternalField(2));
+  v8::Local<v8::Object> fieldDescriptions = v8::Local<v8::Object>::Cast(info.This()->GetInternalField(3));
+
+  if (!fieldDescriptions->Has(property)) {
+    v8::Handle<v8::Value> result;
+    return result;
+  }
+
+  v8::Handle<v8::External> wrappedFieldDesc = v8::Handle<v8::External>::Cast(fieldDescriptions->Get(property));
+  RFC_FIELD_DESC *fieldDesc = static_cast<RFC_FIELD_DESC *>(wrappedFieldDesc->Value());
+
+  return scope.Close(function->GetField(struc, *fieldDesc, functionHandle));
+};
+
+v8::Handle<v8::Value> Function::StructureSetter(v8::Local<v8::String> property, v8::Local<v8::Value> value, const v8::AccessorInfo &info)
+{
+  v8::HandleScope scope;
+  v8::Local<v8::Object> fieldDescriptions = v8::Local<v8::Object>::Cast(info.This()->GetInternalField(3));
+
+  if (fieldDescriptions->Has(property)) {
+    return scope.Close(v8::ThrowException(v8::String::New("Cannot modify properties of SAP structures")));
+  }
+
+  v8::Local<v8::Value> result;
+  return scope.Close(result);
+};
+
+v8::Handle<v8::Integer> Function::StructureQuery(v8::Local<v8::String> property, const v8::AccessorInfo &info)
+{
+  v8::HandleScope scope;
+  v8::Local<v8::Object> fieldDescriptions = v8::Local<v8::Object>::Cast(info.This()->GetInternalField(3));
+
+  if (!fieldDescriptions->Has(property)) {
+    v8::Handle<v8::Integer> result;
+    return result;
+  }
+
+  v8::Handle<v8::Integer> result(v8::Integer::New(v8::ReadOnly));
+  return scope.Close(result);
+};
+
+v8::Handle<v8::Array> Function::StructureEnumerate(const v8::AccessorInfo &info)
+{
+  v8::HandleScope scope;
+  v8::Local<v8::Object> fieldDescriptions = v8::Local<v8::Object>::Cast(info.This()->GetInternalField(3));
+  return scope.Close(fieldDescriptions->GetOwnPropertyNames());
+};
+
+v8::Handle<v8::Boolean> Function::StructureDeleter(v8::Local<v8::String> property, const v8::AccessorInfo &info)
+{
+  v8::HandleScope scope;
+  v8::Local<v8::Object> fieldDescriptions = v8::Local<v8::Object>::Cast(info.This()->GetInternalField(3));
+
+  if (fieldDescriptions->Has(property)) {
+    return scope.Close(v8::Boolean::New(false));
+  }
+
+  v8::Local<v8::Boolean> result;
+  return scope.Close(result);
+};

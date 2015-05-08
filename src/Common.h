@@ -1,4 +1,4 @@
-/* 
+/*
 -----------------------------------------------------------------------------
 Copyright (c) 2011 Joachim Dorner
 
@@ -46,7 +46,7 @@ static std::string convertToString(v8::Handle<v8::Value> const &str)
   if (s != nullptr) {
     return std::string(s, utf8String.length());
   }
-  
+
   return emptyString;
 }
 
@@ -54,7 +54,7 @@ static std::string convertToString(const SAP_UC *str)
 {
   v8::HandleScope scope;
   v8::Local<v8::String> utf16String = v8::String::New((const uint16_t*)(str));
-  
+
   return convertToString(utf16String);
 }
 
@@ -80,9 +80,9 @@ static SAP_UC* convertToSAPUC(v8::Handle<v8::Value> const &str) {
 static v8::Handle<v8::Value> RfcError(const RFC_ERROR_INFO &info)
 {
   v8::HandleScope scope;
-  
+
   v8::Local<v8::Value> e = v8::Exception::Error(v8::String::New((const uint16_t*)(info.message)));
-  
+
   v8::Local<v8::Object> obj = e->ToObject();
   obj->Set(v8::String::New("code"), v8::Integer::New(info.code));
   obj->Set(v8::String::New("group"), v8::Integer::New(info.group));
@@ -94,36 +94,19 @@ static v8::Handle<v8::Value> RfcError(const RFC_ERROR_INFO &info)
   obj->Set(v8::String::New("msgv2"), v8::String::New((const uint16_t*)(info.abapMsgV2)));
   obj->Set(v8::String::New("msgv3"), v8::String::New((const uint16_t*)(info.abapMsgV3)));
   obj->Set(v8::String::New("msgv4"), v8::String::New((const uint16_t*)(info.abapMsgV4)));
-  
+
   return scope.Close(obj);
 }
 
 static v8::Handle<v8::Value> RfcError(const char* message, v8::Handle<v8::Value> value)
 {
-  v8::HandleScope scope;
-  
   v8::Local<v8::String> exceptionString = v8::String::Concat(v8::String::New(message), value->ToString());
-  v8::Local<v8::Value> e = v8::Exception::Error(exceptionString);
-
-  return scope.Close(e->ToObject());
+  return v8::ThrowException(exceptionString);
 }
 
 static bool IsException(v8::Handle<v8::Value> value)
 {
-  v8::HandleScope scope;
-  const v8::Local<v8::Value> sample = v8::Exception::Error(v8::String::New(""));
-  const v8::Local<v8::String> protoSample = sample->ToObject()->ObjectProtoToString();
-  
-  if (!value->IsObject()) {
-    return false;
-  }
-  v8::Local<v8::String> protoReal = value->ToObject()->ObjectProtoToString();
-  if (protoReal->Equals(protoSample)) {
-    return true;
-  }
-  scope.Close(v8::Undefined());
-
-  return false;
+  return value->IsNativeError();
 }
 
 #endif /* COMMON_H_ */
