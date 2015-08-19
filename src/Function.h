@@ -32,8 +32,6 @@ SOFTWARE.
 #include <sapnwrfc.h>
 #include "Connection.h"
 
-typedef DATA_CONTAINER_HANDLE CHND;
-
 class Function : public node::ObjectWrap
 {
   public:
@@ -46,6 +44,7 @@ class Function : public node::ObjectWrap
   
   static v8::Handle<v8::Value> New(const v8::Arguments &args);
   static v8::Handle<v8::Value> Invoke(const v8::Arguments &args);
+  static v8::Handle<v8::Value> MetaData(const v8::Arguments &args);
 
   static void EIO_Invoke(uv_work_t *req);
   static void EIO_AfterInvoke(uv_work_t *req);
@@ -89,6 +88,12 @@ class Function : public node::ObjectWrap
   v8::Handle<v8::Value> DateToInternal(const CHND container, const SAP_UC *name);
   v8::Handle<v8::Value> TimeToInternal(const CHND container, const SAP_UC *name);
   v8::Handle<v8::Value> BCDToInternal(const CHND container, const SAP_UC *name);
+
+  static std::string mapExternalTypeToJavaScriptType(RFCTYPE sapType);
+  static bool addMetaData(const CHND container, v8::Local<v8::Object>& parent,
+                          const RFC_ABAP_NAME name, RFCTYPE type,
+                          unsigned int length, RFC_DIRECTION direction,
+                          RFC_ERROR_INFO* errorInfo, RFC_PARAMETER_TEXT paramText = nullptr);
 
   class InvocationBaton
   {

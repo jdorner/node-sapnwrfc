@@ -212,6 +212,56 @@ func.Invoke(params, function(err, result) {
 });
 ```
 
+## Retrieving function signature as JSON Schema
+
+You can retrieve the name and types of remote function arguments with MetaData() call.
+
+Example:
+
+```js
+var func = con.Lookup('STFC_STRING');
+var signature = func.MetaData();
+console.log(JSON.stringify(signature, null, 2));
+```
+
+The console output is:
+```js
+{
+  "title": "Signature of SAP RFC function STFC_STRING",
+  "type": "object",
+  "properties": {
+    "MYANSWER": {
+      "type": "string",
+      "length": "0",
+      "sapType": "RFCTYPE_STRING",
+      "description": "",
+      "sapDirection": "RFC_EXPORT"
+    },
+    "QUESTION": {
+      "type": "string",
+      "length": "0",
+      "sapType": "RFCTYPE_STRING",
+      "description": "",
+      "sapDirection": "RFC_IMPORT"
+    }
+  }
+}
+```
+
+The result of function MetaData() is an object of [JSON Schema](http://json-schema.org/latest/json-schema-core.html).
+
+The *properties* sub-object specifies the parameter of the remote function. In the above example the remote function STFC_STRING has the parameters MYANSWER and QUESTION. The *sapDirection* specifies if it is an input parameter (RFC_IMPORT) or output parameter (RFC_EXPORT) or input and/or output (RFC_CHANGING | RFC_TABLES).
+
+Attributes with the prefix *sap* are specific to this JSON Schema instance.
+
+- **title:** Name of the JSON Schema.
+- **type:** JavaScript type.
+- **length:** Length of a simple type or structure.
+- **description:** Description of parameters from SAP. Can be empty.
+- **sapType:** Native SAP type. RFCTYPE_TABLE | RFCTYPE_STRUCTURE | RFCTYPE_STRING | RFCTYPE_INT | RFCTYPE_BCD | RFCTYPE_FLOAT | RFCTYPE_CHAR | RFCTYPE_DATE | RFCTYPE_TIME | RFCTYPE_BYTE | RFCTYPE_NUM | ... . You find the complete list of possible values in the SAP header file sapnwrfc.h. Look for enum type *RFCTYPE*.
+- **sapDirection:** Attribute of the first level of properties. RFC_IMPORT | RFC_EXPORT | RFC_CHANGING | RFC_TABLES
+- **sapTypeName:** Name of a structure or name of a structure of a table.
+
 ## Changelog
 
 ### 0.1.5 (2013-05-25)
