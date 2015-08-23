@@ -1,4 +1,4 @@
-/* 
+/*
 -----------------------------------------------------------------------------
 Copyright (c) 2011 Joachim Dorner
 
@@ -38,37 +38,36 @@ class Connection : public node::ObjectWrap
   friend class Function;
 
   public:
-  
-    static void Init(v8::Handle<v8::Object> target);
+
+    static NAN_MODULE_INIT(Init);
 
   protected:
 
     Connection();
     ~Connection();
-    static v8::Handle<v8::Value> GetVersion(const v8::Arguments &args);
-    static v8::Handle<v8::Value> New (const v8::Arguments& args);
-    static v8::Handle<v8::Value> Open(const v8::Arguments& args);
-    static v8::Handle<v8::Value> Close(const v8::Arguments& args);
-    static v8::Handle<v8::Value> Ping(const v8::Arguments& args);
-    static v8::Handle<v8::Value> Lookup(const v8::Arguments &args);
-    static v8::Handle<v8::Value> IsOpen(const v8::Arguments &args);
+    static NAN_METHOD(GetVersion);
+    static NAN_METHOD(New);
+    static NAN_METHOD(Open);
+    static NAN_METHOD(Close);
+    static NAN_METHOD(Ping);
+    static NAN_METHOD(Lookup);
+    static NAN_METHOD(IsOpen);
 
     static void EIO_Open(uv_work_t *req);
     static void EIO_AfterOpen(uv_work_t *req);
-    
-    v8::Handle<v8::Value> CloseConnection(void);
-    
+
+    v8::Local<v8::Value> CloseConnection(void);
+
     RFC_CONNECTION_HANDLE GetConnectionHandle(void);
     void LockMutex(void);
     void UnlockMutex(void);
-    
-    static v8::Persistent<v8::FunctionTemplate> ctorTemplate;
 
     unsigned int loginParamsSize;
     RFC_CONNECTION_PARAMETER *loginParams;
     RFC_ERROR_INFO errorInfo;
     RFC_CONNECTION_HANDLE connectionHandle;
-    v8::Persistent<v8::Function> cbOpen;
+    Nan::Callback *cbOpen;
+
     uv_mutex_t invocationMutex;
 };
 

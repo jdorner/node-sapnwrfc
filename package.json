@@ -7,7 +7,10 @@
   , "keywords": ["sapnwrfc", "sap", "rfc" ]
   , "author": "Joachim Dorner <joachim.dorner@gmail.com>"
   , "main": "sapnwrfc"
-  , "engines": { "node": ">= 0.6.0" }
+  , "engines": {
+      "node": ">= 0.8.0",
+      "iojs": ">= 1.0.0"
+    }
   , "dependencies": {
         "bindings": ">=0.3.0"
   }

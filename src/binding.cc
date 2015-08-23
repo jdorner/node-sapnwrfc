@@ -1,4 +1,4 @@
-/* 
+/*
 -----------------------------------------------------------------------------
 Copyright (c) 2011 Joachim Dorner
 
@@ -28,7 +28,7 @@ SOFTWARE.
 #include "Connection.h"
 #include "Function.h"
 
-void init(v8::Handle<v8::Object> target)
+NAN_MODULE_INIT(init)
 {
   Connection::Init(target);
   Function::Init(target);

@@ -1,4 +1,4 @@
-/* 
+/*
 -----------------------------------------------------------------------------
 Copyright (c) 2011 Joachim Dorner
 
@@ -35,59 +35,59 @@ SOFTWARE.
 class Function : public node::ObjectWrap
 {
   public:
-  static void Init(v8::Handle<v8::Object> target);
-  static v8::Handle<v8::Value> NewInstance(Connection &connection, const v8::Arguments &args);
+  static NAN_MODULE_INIT(Init);
+  static v8::Local<v8::Value> NewInstance(Connection &connection, const Nan::NAN_METHOD_ARGS_TYPE args);
 
   protected:
   Function();
   ~Function();
-  
-  static v8::Handle<v8::Value> New(const v8::Arguments &args);
-  static v8::Handle<v8::Value> Invoke(const v8::Arguments &args);
-  static v8::Handle<v8::Value> MetaData(const v8::Arguments &args);
+
+  static NAN_METHOD(New);
+  static NAN_METHOD(Invoke);
+  static NAN_METHOD(MetaData);
 
   static void EIO_Invoke(uv_work_t *req);
   static void EIO_AfterInvoke(uv_work_t *req);
 
-  v8::Handle<v8::Value> DoReceive(const CHND container);
+  v8::Local<v8::Value> DoReceive(const CHND container);
 
-  v8::Handle<v8::Value> SetParameter(const CHND container, RFC_PARAMETER_DESC &desc, v8::Handle<v8::Value> value);
-  v8::Handle<v8::Value> SetField(const CHND container, RFC_FIELD_DESC &desc, v8::Handle<v8::Value> value);
-  v8::Handle<v8::Value> SetValue(const CHND container, RFCTYPE type, const SAP_UC *name, unsigned len, v8::Handle<v8::Value> value);
-  v8::Handle<v8::Value> StructureToExternal(const CHND container, const SAP_UC *name, v8::Handle<v8::Value> value);
-  v8::Handle<v8::Value> StructureToExternal(const CHND container, const RFC_STRUCTURE_HANDLE struc, v8::Handle<v8::Value>);
-  v8::Handle<v8::Value> TableToExternal(const CHND container, const SAP_UC *name, v8::Handle<v8::Value> value);
-  v8::Handle<v8::Value> StringToExternal(const CHND container, const SAP_UC *name, v8::Handle<v8::Value> value);
-  v8::Handle<v8::Value> XStringToExternal(const CHND container, const SAP_UC *name, v8::Handle<v8::Value> value);
-  v8::Handle<v8::Value> NumToExternal(const CHND container, const SAP_UC *name, v8::Handle<v8::Value> value, unsigned len);
-  v8::Handle<v8::Value> CharToExternal(const CHND container, const SAP_UC *name, v8::Handle<v8::Value> value, unsigned len);
-  v8::Handle<v8::Value> ByteToExternal(const CHND container, const SAP_UC *name, v8::Handle<v8::Value> value, unsigned len);
-  v8::Handle<v8::Value> IntToExternal(const CHND container, const SAP_UC *name, v8::Handle<v8::Value> value);
-  v8::Handle<v8::Value> Int1ToExternal(const CHND container, const SAP_UC *name, v8::Handle<v8::Value> value);
-  v8::Handle<v8::Value> Int2ToExternal(const CHND container, const SAP_UC *name, v8::Handle<v8::Value> value);
-  v8::Handle<v8::Value> FloatToExternal(const CHND container, const SAP_UC *name, v8::Handle<v8::Value> value);
-  v8::Handle<v8::Value> TimeToExternal(const CHND container, const SAP_UC *name, v8::Handle<v8::Value> value);
-  v8::Handle<v8::Value> DateToExternal(const CHND container, const SAP_UC *name, v8::Handle<v8::Value> value);
-  v8::Handle<v8::Value> BCDToExternal(const CHND container, const SAP_UC *name, v8::Handle<v8::Value> value);
+  v8::Local<v8::Value> SetParameter(const CHND container, RFC_PARAMETER_DESC &desc, v8::Local<v8::Value> value);
+  v8::Local<v8::Value> SetField(const CHND container, RFC_FIELD_DESC &desc, v8::Local<v8::Value> value);
+  v8::Local<v8::Value> SetValue(const CHND container, RFCTYPE type, const SAP_UC *name, unsigned len, v8::Local<v8::Value> value);
+  v8::Local<v8::Value> StructureToExternal(const CHND container, const SAP_UC *name, v8::Local<v8::Value> value);
+  v8::Local<v8::Value> StructureToExternal(const CHND container, const RFC_STRUCTURE_HANDLE struc, v8::Local<v8::Value>);
+  v8::Local<v8::Value> TableToExternal(const CHND container, const SAP_UC *name, v8::Local<v8::Value> value);
+  v8::Local<v8::Value> StringToExternal(const CHND container, const SAP_UC *name, v8::Local<v8::Value> value);
+  v8::Local<v8::Value> XStringToExternal(const CHND container, const SAP_UC *name, v8::Local<v8::Value> value);
+  v8::Local<v8::Value> NumToExternal(const CHND container, const SAP_UC *name, v8::Local<v8::Value> value, unsigned len);
+  v8::Local<v8::Value> CharToExternal(const CHND container, const SAP_UC *name, v8::Local<v8::Value> value, unsigned len);
+  v8::Local<v8::Value> ByteToExternal(const CHND container, const SAP_UC *name, v8::Local<v8::Value> value, unsigned len);
+  v8::Local<v8::Value> IntToExternal(const CHND container, const SAP_UC *name, v8::Local<v8::Value> value);
+  v8::Local<v8::Value> Int1ToExternal(const CHND container, const SAP_UC *name, v8::Local<v8::Value> value);
+  v8::Local<v8::Value> Int2ToExternal(const CHND container, const SAP_UC *name, v8::Local<v8::Value> value);
+  v8::Local<v8::Value> FloatToExternal(const CHND container, const SAP_UC *name, v8::Local<v8::Value> value);
+  v8::Local<v8::Value> TimeToExternal(const CHND container, const SAP_UC *name, v8::Local<v8::Value> value);
+  v8::Local<v8::Value> DateToExternal(const CHND container, const SAP_UC *name, v8::Local<v8::Value> value);
+  v8::Local<v8::Value> BCDToExternal(const CHND container, const SAP_UC *name, v8::Local<v8::Value> value);
 
-  v8::Handle<v8::Value> GetParameter(const CHND container, const RFC_PARAMETER_DESC &desc);
-  v8::Handle<v8::Value> GetField(const CHND container, const RFC_FIELD_DESC &desc);
-  v8::Handle<v8::Value> GetValue(const CHND container, RFCTYPE type, const SAP_UC *name, unsigned len);
-  v8::Handle<v8::Value> StructureToInternal(const CHND container, const SAP_UC *name);
-  v8::Handle<v8::Value> StructureToInternal(const CHND container, const RFC_STRUCTURE_HANDLE struc);
-  v8::Handle<v8::Value> TableToInternal(const CHND container, const SAP_UC *name);
-  v8::Handle<v8::Value> StringToInternal(const CHND container, const SAP_UC *name);
-  v8::Handle<v8::Value> XStringToInternal(const CHND container, const SAP_UC *name);
-  v8::Handle<v8::Value> NumToInternal(const CHND container, const SAP_UC *name, unsigned len);
-  v8::Handle<v8::Value> CharToInternal(const CHND container, const SAP_UC *name, unsigned len);
-  v8::Handle<v8::Value> ByteToInternal(const CHND container, const SAP_UC *name, unsigned len);
-  v8::Handle<v8::Value> IntToInternal(const CHND container, const SAP_UC *name);
-  v8::Handle<v8::Value> Int1ToInternal(const CHND container, const SAP_UC *name);
-  v8::Handle<v8::Value> Int2ToInternal(const CHND container, const SAP_UC *name);
-  v8::Handle<v8::Value> FloatToInternal(const CHND container, const SAP_UC *name);
-  v8::Handle<v8::Value> DateToInternal(const CHND container, const SAP_UC *name);
-  v8::Handle<v8::Value> TimeToInternal(const CHND container, const SAP_UC *name);
-  v8::Handle<v8::Value> BCDToInternal(const CHND container, const SAP_UC *name);
+  v8::Local<v8::Value> GetParameter(const CHND container, const RFC_PARAMETER_DESC &desc);
+  v8::Local<v8::Value> GetField(const CHND container, const RFC_FIELD_DESC &desc);
+  v8::Local<v8::Value> GetValue(const CHND container, RFCTYPE type, const SAP_UC *name, unsigned len);
+  v8::Local<v8::Value> StructureToInternal(const CHND container, const SAP_UC *name);
+  v8::Local<v8::Value> StructureToInternal(const CHND container, const RFC_STRUCTURE_HANDLE struc);
+  v8::Local<v8::Value> TableToInternal(const CHND container, const SAP_UC *name);
+  v8::Local<v8::Value> StringToInternal(const CHND container, const SAP_UC *name);
+  v8::Local<v8::Value> XStringToInternal(const CHND container, const SAP_UC *name);
+  v8::Local<v8::Value> NumToInternal(const CHND container, const SAP_UC *name, unsigned len);
+  v8::Local<v8::Value> CharToInternal(const CHND container, const SAP_UC *name, unsigned len);
+  v8::Local<v8::Value> ByteToInternal(const CHND container, const SAP_UC *name, unsigned len);
+  v8::Local<v8::Value> IntToInternal(const CHND container, const SAP_UC *name);
+  v8::Local<v8::Value> Int1ToInternal(const CHND container, const SAP_UC *name);
+  v8::Local<v8::Value> Int2ToInternal(const CHND container, const SAP_UC *name);
+  v8::Local<v8::Value> FloatToInternal(const CHND container, const SAP_UC *name);
+  v8::Local<v8::Value> DateToInternal(const CHND container, const SAP_UC *name);
+  v8::Local<v8::Value> TimeToInternal(const CHND container, const SAP_UC *name);
+  v8::Local<v8::Value> BCDToInternal(const CHND container, const SAP_UC *name);
 
   static std::string mapExternalTypeToJavaScriptType(RFCTYPE sapType);
   static bool addMetaData(const CHND container, v8::Local<v8::Object>& parent,
@@ -101,28 +101,25 @@ class Function : public node::ObjectWrap
     InvocationBaton() : function(nullptr), functionHandle(nullptr) { };
     ~InvocationBaton() {
       RFC_ERROR_INFO errorInfo;
-    
+
       if (this->functionHandle) {
         RfcDestroyFunction(this->functionHandle, &errorInfo);
         this->functionHandle = nullptr;
       }
 
-      if (!this->cbInvoke.IsEmpty()) {
-        this->cbInvoke.Dispose();
-        this->cbInvoke.Clear();
-      }
+      delete this->cbInvoke;
+      this->cbInvoke = nullptr;
     };
 
     Function *function;
     Connection *connection;
     RFC_FUNCTION_HANDLE functionHandle;
-    v8::Persistent<v8::Function> cbInvoke;
+    Nan::Callback *cbInvoke;
     RFC_ERROR_INFO errorInfo;
   };
 
-  static v8::Persistent<v8::FunctionTemplate> ctorTemplate;
-  
-  //RFC_CONNECTION_HANDLE connectionHandle;
+  static Nan::Persistent<v8::Function> ctor;
+
   Connection *connection;
   RFC_FUNCTION_DESC_HANDLE functionDescHandle;
 };

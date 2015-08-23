@@ -1,4 +1,4 @@
-/* 
+/*
 -----------------------------------------------------------------------------
 Copyright (c) 2011 Joachim Dorner
 
@@ -26,6 +26,7 @@ SOFTWARE.
 #define COMMON_H_
 
 #include <v8.h>
+#include <nan.h>
 #include <sapnwrfc.h>
 #include <iostream>
 
@@ -33,14 +34,14 @@ SOFTWARE.
 #define nullptr NULL
 #endif
 
-#define THROW_V8_EXCEPTION(msg) ThrowException(v8::Exception::Error(v8::String::New(msg)));
-#define RFC_ERROR(...) scope.Close(RfcError(__VA_ARGS__))
+#define THROW_V8_EXCEPTION(msg) Nan::ThrowError(msg);
+#define RETURN_RFC_ERROR(...) info.GetReturnValue().Set(RfcError(__VA_ARGS__)); return;
 
 typedef DATA_CONTAINER_HANDLE CHND;
 
 static std::string convertToString(v8::Handle<v8::Value> const &str)
 {
-  v8::HandleScope scope;
+  Nan::HandleScope scope;
   static const std::string emptyString;
 
   v8::String::Utf8Value utf8String(str);
@@ -48,15 +49,15 @@ static std::string convertToString(v8::Handle<v8::Value> const &str)
   if (s != nullptr) {
     return std::string(s, utf8String.length());
   }
-  
+
   return emptyString;
 }
 
 static std::string convertToString(const SAP_UC *str)
 {
-  v8::HandleScope scope;
-  v8::Local<v8::String> utf16String = v8::String::New((const uint16_t*)(str));
-  
+  Nan::HandleScope scope;
+  v8::Local<v8::String> utf16String = Nan::New<v8::String>((const uint16_t*)(str)).ToLocalChecked();
+
   return convertToString(utf16String);
 }
 
@@ -79,43 +80,84 @@ static SAP_UC* convertToSAPUC(v8::Handle<v8::Value> const &str) {
   return sapuc;
 }
 
-static v8::Handle<v8::Value> RfcError(const RFC_ERROR_INFO &info)
+static v8::Local<v8::Value> RfcError(const char *msg, const SAP_UC *sapName) {
+    Nan::EscapableHandleScope scope;
+
+    v8::Local<v8::String> s = Nan::New<v8::String>(msg).ToLocalChecked();
+    v8::String::Concat(s, Nan::New<v8::String>(sapName).ToLocalChecked());
+    return scope.Escape(s);
+}
+
+static v8::Local<v8::Value> RfcError(const RFC_ERROR_INFO &info)
 {
-  v8::HandleScope scope;
-  
-  v8::Local<v8::Value> e = v8::Exception::Error(v8::String::New((const uint16_t*)(info.message)));
-  
+  Nan::EscapableHandleScope scope;
+
+  v8::Local<v8::Value> e = v8::Exception::Error(
+      Nan::New<v8::String>((const uint16_t*)(info.message)).ToLocalChecked()
+  );
+
   v8::Local<v8::Object> obj = e->ToObject();
-  obj->Set(v8::String::New("code"), v8::Integer::New(info.code));
-  obj->Set(v8::String::New("group"), v8::Integer::New(info.group));
-  obj->Set(v8::String::New("key"), v8::String::New((const uint16_t*)(info.key)));
-  obj->Set(v8::String::New("class"), v8::String::New((const uint16_t*)(info.abapMsgClass)));
-  obj->Set(v8::String::New("type"), v8::String::New((const uint16_t*)(info.abapMsgType)));
-  obj->Set(v8::String::New("number"), v8::String::New((const uint16_t*)(info.abapMsgNumber)));
-  obj->Set(v8::String::New("msgv1"), v8::String::New((const uint16_t*)(info.abapMsgV1)));
-  obj->Set(v8::String::New("msgv2"), v8::String::New((const uint16_t*)(info.abapMsgV2)));
-  obj->Set(v8::String::New("msgv3"), v8::String::New((const uint16_t*)(info.abapMsgV3)));
-  obj->Set(v8::String::New("msgv4"), v8::String::New((const uint16_t*)(info.abapMsgV4)));
-  
-  return scope.Close(obj);
+  obj->Set(
+      Nan::New<v8::String>("code").ToLocalChecked(),
+      Nan::New<v8::Integer>(info.code)
+  );
+  obj->Set(
+      Nan::New<v8::String>("group").ToLocalChecked(),
+      Nan::New<v8::Integer>(info.group)
+  );
+  obj->Set(
+      Nan::New<v8::String>("key").ToLocalChecked(),
+      Nan::New<v8::String>((const uint16_t*)(info.key)).ToLocalChecked()
+  );
+  obj->Set(
+      Nan::New<v8::String>("class").ToLocalChecked(),
+      Nan::New<v8::String>((const uint16_t*)(info.abapMsgClass)).ToLocalChecked()
+  );
+  obj->Set(
+      Nan::New<v8::String>("type").ToLocalChecked(),
+      Nan::New<v8::String>((const uint16_t*)(info.abapMsgType)).ToLocalChecked()
+  );
+  obj->Set(
+      Nan::New<v8::String>("number").ToLocalChecked(),
+      Nan::New<v8::String>((const uint16_t*)(info.abapMsgNumber)).ToLocalChecked()
+  );
+  obj->Set(
+      Nan::New<v8::String>("msgv1").ToLocalChecked(),
+      Nan::New<v8::String>((const uint16_t*)(info.abapMsgV1)).ToLocalChecked()
+  );
+  obj->Set(
+      Nan::New<v8::String>("msgv2").ToLocalChecked(),
+      Nan::New<v8::String>((const uint16_t*)(info.abapMsgV2)).ToLocalChecked()
+  );
+  obj->Set(
+      Nan::New<v8::String>("msgv3").ToLocalChecked(),
+      Nan::New<v8::String>((const uint16_t*)(info.abapMsgV3)).ToLocalChecked()
+  );
+  obj->Set(
+      Nan::New<v8::String>("msgv4").ToLocalChecked(),
+      Nan::New<v8::String>((const uint16_t*)(info.abapMsgV4)).ToLocalChecked()
+  );
+
+  return scope.Escape(obj);
 }
 
 static v8::Handle<v8::Value> RfcError(const char* message, v8::Handle<v8::Value> value)
 {
-  v8::HandleScope scope;
-  
-  v8::Local<v8::String> exceptionString = v8::String::Concat(v8::String::New(message), value->ToString());
+  Nan::EscapableHandleScope scope;
+
+  v8::Local<v8::String> leftSide = Nan::New<v8::String>(message).ToLocalChecked();
+  v8::Local<v8::String> exceptionString = v8::String::Concat(leftSide, value->ToString());
   v8::Local<v8::Value> e = v8::Exception::Error(exceptionString);
 
-  return scope.Close(e->ToObject());
+  return scope.Escape(e->ToObject());
 }
 
 static bool IsException(v8::Handle<v8::Value> value)
 {
-  v8::HandleScope scope;
-  const v8::Local<v8::Value> sample = v8::Exception::Error(v8::String::New(""));
+  Nan::HandleScope scope;
+  const v8::Local<v8::Value> sample = Nan::Error(Nan::New<v8::String>("").ToLocalChecked());
   const v8::Local<v8::String> protoSample = sample->ToObject()->ObjectProtoToString();
-  
+
   if (!value->IsObject()) {
     return false;
   }
@@ -123,7 +165,6 @@ static bool IsException(v8::Handle<v8::Value> value)
   if (protoReal->Equals(protoSample)) {
     return true;
   }
-  scope.Close(v8::Undefined());
 
   return false;
 }

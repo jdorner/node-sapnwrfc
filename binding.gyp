@@ -16,13 +16,13 @@
       'src/Function.h',
       'src/Function.cc',
     ],
-    
+
     'target_name': '<(module_name)',
     'type': '<(library)',
     'product_name': '<(module_name)',
     'product_extension': 'node',
     'product_prefix': '',
-    
+
     'defines': [
       'ARCH="<(target_arch)"',
       'PLATFORM="<(OS)"',
@@ -32,7 +32,7 @@
       'SAPwithTHREADS',
       'NDEBUG',
     ],
-    
+
     'conditions': [
       [ 'OS=="win"', {
         'defines': [
@@ -55,6 +55,7 @@
            }]
         ],
         'include_dirs': [
+          '<!(node -e "require(\'nan\')")',
           '<(nwrfcsdk_path)/include'
         ],
         'msvs_configuration_attributes': {
@@ -70,7 +71,7 @@
        #'libraries': [ '-lsapnwrfc.lib', '-llibsapucum.lib' ],
        'product_dir': '<(output_directory)'
       }],
-      
+
       [ 'OS=="mac"', {
         'defines': [
           'SAPonUNIX',
@@ -103,13 +104,14 @@
           ]
         }
       }],
-      
+
       [ 'OS=="linux"', {
         'cflags!': [
           '-Wall',
           '-pedantic'
         ],
         'include_dirs': [
+          '<!(node -e "require(\'nan\')")',
           '<(nwrfcsdk_path)/include'
         ],
         'defines': [

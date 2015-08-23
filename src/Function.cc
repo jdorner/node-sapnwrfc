@@ -1,4 +1,4 @@
-/* 
+/*
 -----------------------------------------------------------------------------
 Copyright (c) 2011 Joachim Dorner
 
@@ -25,8 +25,9 @@ SOFTWARE.
 #include "Function.h"
 #include <cassert>
 #include <sstream>
+#include <limits.h>
 
-v8::Persistent<v8::FunctionTemplate> Function::ctorTemplate;
+Nan::Persistent<v8::Function> Function::ctor;
 
 Function::Function(): connection(nullptr), functionDescHandle(nullptr)
 {
@@ -36,28 +37,26 @@ Function::~Function()
 {
 }
 
-void Function::Init(v8::Handle<v8::Object> target)
+NAN_MODULE_INIT(Function::Init)
 {
-  v8::HandleScope scope;
-  
-  ctorTemplate = v8::Persistent<v8::FunctionTemplate>::New(v8::FunctionTemplate::New(New));
+  Nan::HandleScope scope;
+  v8::Local<v8::FunctionTemplate> ctorTemplate = Nan::New<v8::FunctionTemplate>(New);
   ctorTemplate->InstanceTemplate()->SetInternalFieldCount(1);
-  ctorTemplate->SetClassName(v8::String::NewSymbol("Function"));
+  ctorTemplate->SetClassName(Nan::New("Function").ToLocalChecked());
+  Nan::SetPrototypeMethod(ctorTemplate, "Invoke", Invoke);
+  Nan::SetPrototypeMethod(ctorTemplate, "MetaData", MetaData);
 
-  NODE_SET_PROTOTYPE_METHOD(ctorTemplate, "Invoke", Function::Invoke);
-  NODE_SET_PROTOTYPE_METHOD(ctorTemplate, "MetaData", Function::MetaData);
-
-  target->Set(v8::String::NewSymbol("Function"), ctorTemplate->GetFunction());
+  ctor.Reset(ctorTemplate->GetFunction());
 }
 
-v8::Handle<v8::Value> Function::NewInstance(Connection &connection, const v8::Arguments &args)
+v8::Local<v8::Value> Function::NewInstance(Connection &connection, const Nan::NAN_METHOD_ARGS_TYPE args)
 {
-  v8::HandleScope scope;
+  Nan::HandleScope scope;
   unsigned int parmCount;
   RFC_RC rc = RFC_OK;
   RFC_ERROR_INFO errorInfo;
-  
-  v8::Local<v8::Object> func = ctorTemplate->GetFunction()->NewInstance();
+
+  v8::Local<v8::Object> func = Nan::New(ctor)->NewInstance();
   Function *self = node::ObjectWrap::Unwrap<Function>(func);
 
   // Save connection
@@ -74,60 +73,62 @@ v8::Handle<v8::Value> Function::NewInstance(Connection &connection, const v8::Ar
 #endif
 
   if (self->functionDescHandle == nullptr) {
-    return RFC_ERROR(errorInfo);
+    return RfcError(errorInfo);
   }
-  
+
   rc = RfcGetParameterCount(self->functionDescHandle, &parmCount, &errorInfo);
   if (rc != RFC_OK) {
-    return RFC_ERROR(errorInfo);
+    return RfcError(errorInfo);
   }
 
   // Dynamically add parameters to JS object
   for (unsigned int i = 0; i < parmCount; i++) {
     RFC_PARAMETER_DESC parmDesc;
-    
+
     rc = RfcGetParameterDescByIndex(self->functionDescHandle, i, &parmDesc, &errorInfo);
     if (rc != RFC_OK) {
-      return RFC_ERROR(errorInfo);
+      return RfcError(errorInfo);
     }
-    func->Set(v8::String::New((const uint16_t*)(parmDesc.name)), v8::Null());
+    func->Set(Nan::New((const uint16_t*)(parmDesc.name)).ToLocalChecked(), Nan::Null());
   }
 
   return func;
 }
 
-v8::Handle<v8::Value> Function::New(const v8::Arguments &args)
+NAN_METHOD(Function::New)
 {
-  v8::HandleScope scope;
-
-  if (!args.IsConstructCall()) {
-    return THROW_V8_EXCEPTION("Invalid call format. Please use the 'new' operator.");
+  if (!info.IsConstructCall()) {
+    THROW_V8_EXCEPTION("Invalid call format. Please use the 'new' operator.");
+    return;
   }
 
   Function *self = new Function();
-  self->Wrap(args.This());
+  self->Wrap(info.This());
 
-  return args.This();
+  info.GetReturnValue().Set(info.This());
 }
 
-v8::Handle<v8::Value> Function::Invoke(const v8::Arguments &args)
+
+NAN_METHOD(Function::Invoke)
 {
-  v8::HandleScope scope;
   RFC_RC rc = RFC_OK;
   unsigned int parmCount;
   RFC_ERROR_INFO errorInfo;
-  
-  Function *self = node::ObjectWrap::Unwrap<Function>(args.This());
+
+  Function *self = node::ObjectWrap::Unwrap<Function>(info.This());
   assert(self != nullptr);
 
-  if (args.Length() < 1) {
-    return THROW_V8_EXCEPTION("Function requires 2 arguments");
+  if (info.Length() < 1) {
+    THROW_V8_EXCEPTION("Function expects 2 arguments");
+    return;
   }
-  if (!args[0]->IsObject()) {
-    return THROW_V8_EXCEPTION("Argument 1 must be an object");
+  if (!info[0]->IsObject()) {
+    THROW_V8_EXCEPTION("Argument 1 must be an object");
+    return;
   }
-  if (!args[1]->IsFunction()) {
-    return THROW_V8_EXCEPTION("Argument 2 must be a function");
+  if (!info[1]->IsFunction()) {
+    THROW_V8_EXCEPTION("Argument 2 must be a function");
+    return;
   }
 
   // Create baton to hold call context
@@ -136,33 +137,33 @@ v8::Handle<v8::Value> Function::Invoke(const v8::Arguments &args)
   baton->connection = self->connection;
 
   // Store callback
-  baton->cbInvoke = v8::Persistent<v8::Function>::New(v8::Local<v8::Function>::Cast(args[1]));
-  
+  baton->cbInvoke = new Nan::Callback(info[1].As<v8::Function>());
+
   baton->functionHandle = RfcCreateFunction(self->functionDescHandle, &errorInfo);
   if (baton->functionHandle == nullptr) {
     delete baton;
-    return RFC_ERROR(errorInfo);
+    RETURN_RFC_ERROR(errorInfo);
   }
 
   rc = RfcGetParameterCount(self->functionDescHandle, &parmCount, &errorInfo);
   if (rc != RFC_OK) {
     delete baton;
-    return RFC_ERROR(errorInfo);
+    RETURN_RFC_ERROR(errorInfo);
   }
 
-  v8::Local<v8::Object> inputParm = args[0]->ToObject();
+  v8::Local<v8::Object> inputParm = info[0]->ToObject();
 
   for (unsigned int i = 0; i < parmCount; i++) {
     RFC_PARAMETER_DESC parmDesc;
-    
+
     rc = RfcGetParameterDescByIndex(self->functionDescHandle, i, &parmDesc, &errorInfo);
     if (rc != RFC_OK) {
       delete baton;
-      return RFC_ERROR(errorInfo);
+      RETURN_RFC_ERROR(errorInfo);
     }
 
-    v8::Local<v8::String> parmName = v8::String::New((const uint16_t*)(parmDesc.name));
-    v8::Handle<v8::Value> result = v8::Undefined();
+    v8::Local<v8::String> parmName = Nan::New((const uint16_t*)(parmDesc.name)).ToLocalChecked();
+    v8::Local<v8::Value> result = Nan::Undefined();
 
     if (inputParm->Has(parmName) && !inputParm->Get(parmName)->IsNull()) {
       switch (parmDesc.direction) {
@@ -178,23 +179,24 @@ v8::Handle<v8::Value> Function::Invoke(const v8::Arguments &args)
 
       if (IsException(result)) {
         v8::Local<v8::Value> argv[2];
-        argv[0] = v8::Local<v8::Value>::New(result);
-        argv[1] = v8::Local<v8::Value>::New(v8::Null());
-        v8::TryCatch try_catch;
+        argv[0] = result;
+        argv[1] = Nan::Null();
+        Nan::TryCatch try_catch;
 
-        baton->cbInvoke->Call(v8::Context::GetCurrent()->Global(), 2, argv);
+        baton->cbInvoke->Call(Nan::GetCurrentContext()->Global(), 2, argv);
         delete baton;
         if (try_catch.HasCaught()) {
-          node::FatalException(try_catch);
+          Nan::FatalException(try_catch);
         }
-        return scope.Close(v8::Undefined());
+        info.GetReturnValue().SetUndefined();
+        return;
       }
     }
 
     rc = RfcSetParameterActive(baton->functionHandle, parmDesc.name, true, &errorInfo);
     if (rc != RFC_OK) {
       delete baton;
-      return RFC_ERROR(errorInfo);
+      RETURN_RFC_ERROR(errorInfo);
     }
   }
 
@@ -206,44 +208,45 @@ v8::Handle<v8::Value> Function::Invoke(const v8::Arguments &args)
   uv_ref(uv_default_loop());
 #endif
 
-  return scope.Close(v8::Undefined());
+  info.GetReturnValue().SetUndefined();
 }
 
-v8::Handle<v8::Value> Function::MetaData(const v8::Arguments &args)
+NAN_METHOD(Function::MetaData)
 {
-  v8::HandleScope scope;
   RFC_RC rc = RFC_OK;
   unsigned int parmCount;
   RFC_ERROR_INFO errorInfo;
 
-  Function *self = node::ObjectWrap::Unwrap<Function>(args.This());
+  Function *self = node::ObjectWrap::Unwrap<Function>(info.This());
   assert(self != nullptr);
 
   rc = RfcGetParameterCount(self->functionDescHandle, &parmCount, &errorInfo);
   if (rc != RFC_OK) {
-    return RFC_ERROR(errorInfo);
+    RETURN_RFC_ERROR(errorInfo);
   }
 
-  v8::Local<v8::Object> metaObject = v8::Object::New();
+  v8::Local<v8::Object> metaObject = Nan::New<v8::Object>();
   RFC_ABAP_NAME functionName;
   rc = RfcGetFunctionName(self->functionDescHandle, functionName, &errorInfo);
   if (rc != RFC_OK) {
-    return RFC_ERROR(errorInfo);
+    RETURN_RFC_ERROR(errorInfo);
   }
 
   RFC_FUNCTION_HANDLE functionHandle = RfcCreateFunction(self->functionDescHandle, &errorInfo);
   if (functionHandle == nullptr) {
     RfcDestroyFunction(functionHandle, &errorInfo);
-    return RFC_ERROR(errorInfo);
+    RETURN_RFC_ERROR(errorInfo);
   }
 
-  std::string title = "Signature of SAP RFC function " + convertToString( functionName);
+  std::string title = "Signature of SAP RFC function " + convertToString(functionName);
 
-  metaObject->Set(v8::String::New("title"), v8::String::New(title.c_str()));
-  metaObject->Set(v8::String::New("type"), v8::String::New("object"));
+  metaObject->Set(Nan::New<v8::String>("title").ToLocalChecked(),
+    Nan::New<v8::String>(title.c_str()).ToLocalChecked());
+  metaObject->Set(Nan::New<v8::String>("type").ToLocalChecked(),
+    Nan::New<v8::String>("object").ToLocalChecked());
 
-  v8::Local<v8::Object> properties = v8::Object::New();
-  metaObject->Set(v8::String::New("properties"), properties);
+  v8::Local<v8::Object> properties = Nan::New<v8::Object>();
+  metaObject->Set(Nan::New<v8::String>("properties").ToLocalChecked(), properties);
 
   // Dynamically add parameters to JS object
   for (unsigned int i = 0; i < parmCount; i++) {
@@ -251,25 +254,25 @@ v8::Handle<v8::Value> Function::MetaData(const v8::Arguments &args)
 
     rc = RfcGetParameterDescByIndex(self->functionDescHandle, i, &parmDesc, &errorInfo);
     if (rc != RFC_OK) {
-      return RFC_ERROR(errorInfo);
+      RETURN_RFC_ERROR(errorInfo);
     }
 
-    if( !addMetaData(functionHandle, properties, parmDesc.name, parmDesc.type,
+    if (!addMetaData(functionHandle, properties, parmDesc.name, parmDesc.type,
                 parmDesc.nucLength, parmDesc.direction, &errorInfo, parmDesc.parameterText)) {
-      return RFC_ERROR(errorInfo);
+      RETURN_RFC_ERROR(errorInfo);
     }
   }
 
   RfcDestroyFunction(functionHandle, &errorInfo);
 
-  return scope.Close(metaObject);
+  info.GetReturnValue().Set(metaObject);
 }
 
 void Function::EIO_Invoke(uv_work_t *req)
 {
   RFC_RC rc = RFC_OK;
   int isValid;
-  
+
   InvocationBaton *baton = static_cast<InvocationBaton*>(req->data);
 
   assert(baton != nullptr);
@@ -284,26 +287,26 @@ void Function::EIO_Invoke(uv_work_t *req)
   if (baton->errorInfo.code == RFC_INVALID_HANDLE) {
     rc = RfcIsConnectionHandleValid(baton->connection->GetConnectionHandle(), &isValid, &baton->errorInfo);
   }
-  
+
   baton->connection->UnlockMutex();
 }
 
 void Function::EIO_AfterInvoke(uv_work_t *req)
 {
-  v8::HandleScope scope;
+  Nan::HandleScope scope;
   RFC_ERROR_INFO errorInfo;
- 
+
   InvocationBaton *baton = static_cast<InvocationBaton*>(req->data);
   assert(baton != nullptr);
-  
+
   v8::Local<v8::Value> argv[2];
-  argv[0] = v8::Local<v8::Value>::New(v8::Null());
-  argv[1] = v8::Local<v8::Value>::New(v8::Null());
-  
+  argv[0] = Nan::Null();
+  argv[1] = Nan::Null();
+
   if (baton->errorInfo.code != RFC_OK) {
-    argv[0] = v8::Local<v8::Value>::New(RfcError(baton->errorInfo));
+    argv[0] = RfcError(baton->errorInfo);
   } else {
-    v8::Local<v8::Value> result = v8::Local<v8::Value>::New(baton->function->DoReceive(baton->functionHandle));
+    v8::Local<v8::Value> result = baton->function->DoReceive(baton->functionHandle);
     if (IsException(result)) {
       argv[0] = result;
     } else {
@@ -316,41 +319,41 @@ void Function::EIO_AfterInvoke(uv_work_t *req)
     baton->functionHandle = nullptr;
   }
 
-  v8::TryCatch try_catch;
+  Nan::TryCatch try_catch;
 
   assert(!baton->cbInvoke.IsEmpty());
-  baton->cbInvoke->Call(v8::Context::GetCurrent()->Global(), 2, argv);
+  baton->cbInvoke->Call(Nan::GetCurrentContext()->Global(), 2, argv);
 
   baton->function->Unref();
   delete baton;
 
   if (try_catch.HasCaught()) {
-    node::FatalException(try_catch);
+    Nan::FatalException(try_catch);
   }
 }
 
-v8::Handle<v8::Value> Function::DoReceive(const CHND container)
+v8::Local<v8::Value> Function::DoReceive(const CHND container)
 {
-  v8::HandleScope scope;
+  Nan::EscapableHandleScope scope;
   RFC_RC rc = RFC_OK;
   RFC_ERROR_INFO errorInfo;
   unsigned int parmCount;
-  
-  v8::Local<v8::Object> result = v8::Object::New();
+
+  v8::Local<v8::Object> result = Nan::New<v8::Object>();
 
   // Get resulting values for exporting/changing/table parameters
   rc = RfcGetParameterCount(this->functionDescHandle, &parmCount, &errorInfo);
   if (rc != RFC_OK) {
-    return RFC_ERROR(errorInfo);
+    return RfcError(errorInfo);
   }
 
   for (unsigned int i = 0; i < parmCount; i++) {
     RFC_PARAMETER_DESC parmDesc;
-    v8::Handle<v8::Value> parmValue;
-    
+    v8::Local<v8::Value> parmValue;
+
     rc = RfcGetParameterDescByIndex(this->functionDescHandle, i, &parmDesc, &errorInfo);
     if (rc != RFC_OK) {
-      return RFC_ERROR(errorInfo);
+      return RfcError(errorInfo);
     }
 
     switch (parmDesc.direction) {
@@ -361,9 +364,9 @@ v8::Handle<v8::Value> Function::DoReceive(const CHND container)
       case RFC_EXPORT:
         parmValue = this->GetParameter(container, parmDesc);
         if (IsException(parmValue)) {
-          return ThrowException(parmValue);
+          return parmValue;
         }
-        result->Set(v8::String::New((const uint16_t*)parmDesc.name), parmValue);
+        result->Set(Nan::New<v8::String>((const uint16_t*)parmDesc.name).ToLocalChecked(), parmValue);
         break;
       default:
         assert(0);
@@ -371,26 +374,26 @@ v8::Handle<v8::Value> Function::DoReceive(const CHND container)
     }
   }
 
-  return scope.Close(result);
+  return scope.Escape(result);
 }
 
-v8::Handle<v8::Value> Function::SetParameter(const CHND container, RFC_PARAMETER_DESC &desc, v8::Handle<v8::Value> value)
+v8::Local<v8::Value> Function::SetParameter(const CHND container, RFC_PARAMETER_DESC &desc, v8::Local<v8::Value> value)
 {
-  v8::HandleScope scope;
-  return scope.Close(this->SetValue(container, desc.type, desc.name, desc.nucLength, value));
+  Nan::EscapableHandleScope scope;
+  return scope.Escape(this->SetValue(container, desc.type, desc.name, desc.nucLength, value));
 }
 
-v8::Handle<v8::Value> Function::SetField(const CHND container, RFC_FIELD_DESC &desc, v8::Handle<v8::Value> value)
+v8::Local<v8::Value> Function::SetField(const CHND container, RFC_FIELD_DESC &desc, v8::Local<v8::Value> value)
 {
-  v8::HandleScope scope;
-  return scope.Close(this->SetValue(container, desc.type, desc.name, desc.nucLength, value));
+  Nan::EscapableHandleScope scope;
+  return scope.Escape(this->SetValue(container, desc.type, desc.name, desc.nucLength, value));
 }
 
-v8::Handle<v8::Value> Function::SetValue(const CHND container, RFCTYPE type, const SAP_UC *name, unsigned len, v8::Handle<v8::Value> value)
+v8::Local<v8::Value> Function::SetValue(const CHND container, RFCTYPE type, const SAP_UC *name, unsigned len, v8::Local<v8::Value> value)
 {
-  v8::HandleScope scope;
+  Nan::EscapableHandleScope scope;
 
-  v8::Handle<v8::Value> result = v8::Undefined();
+  v8::Local<v8::Value> result = Nan::Undefined();
 
   switch (type) {
     case RFCTYPE_DATE:
@@ -437,36 +440,35 @@ v8::Handle<v8::Value> Function::SetValue(const CHND container, RFCTYPE type, con
       break;
     default:
       // Type not implemented
-      assert(0);
-      return RFC_ERROR("RFC type not implemented: ", v8::Uint32::New(type)->ToString());
+      return RfcError("RFC type not implemented: ", Nan::New<v8::Uint32>(type)->ToString());
       break;
   }
 
   if (IsException(result)) {
-    return scope.Close(result);
+    return scope.Escape(result);
   }
 
-  return scope.Close(v8::Null());  
+  return scope.Escape(Nan::Null());
 }
 
-v8::Handle<v8::Value> Function::StructureToExternal(const CHND container, const SAP_UC *name, v8::Handle<v8::Value> value)
+v8::Local<v8::Value> Function::StructureToExternal(const CHND container, const SAP_UC *name, v8::Local<v8::Value> value)
 {
-  v8::HandleScope scope;
+  Nan::EscapableHandleScope scope;
   RFC_RC rc = RFC_OK;
   RFC_ERROR_INFO errorInfo;
   RFC_STRUCTURE_HANDLE strucHandle;
 
   rc = RfcGetStructure(container, name, &strucHandle, &errorInfo);
   if (rc != RFC_OK) {
-    return RFC_ERROR(errorInfo);
+    return RfcError(errorInfo);
   }
 
-  return scope.Close(this->StructureToExternal(container, strucHandle, value));
+  return scope.Escape(this->StructureToExternal(container, strucHandle, value));
 }
 
-v8::Handle<v8::Value> Function::StructureToExternal(const CHND container, const RFC_STRUCTURE_HANDLE struc, v8::Handle<v8::Value> value)
+v8::Local<v8::Value> Function::StructureToExternal(const CHND container, const RFC_STRUCTURE_HANDLE struc, v8::Local<v8::Value> value)
 {
-  v8::HandleScope scope;
+  Nan::EscapableHandleScope scope;
   RFC_RC rc = RFC_OK;
   RFC_ERROR_INFO errorInfo;
   RFC_TYPE_DESC_HANDLE typeHandle;
@@ -474,44 +476,44 @@ v8::Handle<v8::Value> Function::StructureToExternal(const CHND container, const 
   unsigned fieldCount;
 
   if (!value->IsObject()) {
-    return RFC_ERROR("Argument has unexpected type: ", v8::String::New((const uint16_t*)(fieldDesc.name)));
+    return RfcError("Argument has unexpected type: ", (const uint16_t*)fieldDesc.name);
   }
   v8::Local<v8::Object> valueObj = value->ToObject();
 
   typeHandle = RfcDescribeType(struc, &errorInfo);
   assert(typeHandle);
   if (typeHandle == nullptr) {
-    return RFC_ERROR(errorInfo);
+    return RfcError(errorInfo);
   }
 
   rc = RfcGetFieldCount(typeHandle, &fieldCount, &errorInfo);
   if (rc != RFC_OK) {
-    return RFC_ERROR(errorInfo);
+    return RfcError(errorInfo);
   }
 
   for (unsigned int i = 0; i < fieldCount; i++) {
     rc = RfcGetFieldDescByIndex(typeHandle, i, &fieldDesc, &errorInfo);
     if (rc != RFC_OK) {
-      return RFC_ERROR(errorInfo);
+      return RfcError(errorInfo);
     }
 
-    v8::Local<v8::String> fieldName = v8::String::New((const uint16_t*)(fieldDesc.name));
+    v8::Local<v8::String> fieldName = Nan::New<v8::String>((const uint16_t*)(fieldDesc.name)).ToLocalChecked();
 
     if (valueObj->Has(fieldName)) {
-      v8::Handle<v8::Value> result = this->SetField(struc, fieldDesc, valueObj->Get(fieldName));
+      v8::Local<v8::Value> result = this->SetField(struc, fieldDesc, valueObj->Get(fieldName));
       // Bail out on exception
       if (IsException(result)) {
-        return scope.Close(result);
+        return scope.Escape(result);
       }
     }
   }
 
-  return scope.Close(v8::Null());
+  return scope.Escape(Nan::Null());
 }
 
-v8::Handle<v8::Value> Function::TableToExternal(const CHND container, const SAP_UC *name, v8::Handle<v8::Value> value)
+v8::Local<v8::Value> Function::TableToExternal(const CHND container, const SAP_UC *name, v8::Local<v8::Value> value)
 {
-  v8::HandleScope scope;
+  Nan::EscapableHandleScope scope;
   RFC_RC rc = RFC_OK;
   RFC_ERROR_INFO errorInfo;
   RFC_TABLE_HANDLE tableHandle;
@@ -519,307 +521,316 @@ v8::Handle<v8::Value> Function::TableToExternal(const CHND container, const SAP_
   uint32_t rowCount;
 
   if (!value->IsArray()) {
-    return RFC_ERROR("Argument has unexpected type: ", v8::String::New((const uint16_t*)(name)));
+    return RfcError("Argument has unexpected type: ", (const uint16_t*)name);
   }
 
   rc = RfcGetTable(container, name, &tableHandle, &errorInfo);
   if (rc != RFC_OK) {
-    return RFC_ERROR(errorInfo);
+    return RfcError(errorInfo);
   }
 
-  v8::Handle<v8::Array> source = v8::Local<v8::Array>(v8::Array::Cast(*value));
+  v8::Local<v8::Array> source = v8::Local<v8::Array>::Cast(value);
   rowCount = source->Length();
 
-  for (uint32_t i = 0; i < rowCount; i++){
+  for (uint32_t i = 1; i <= rowCount; i++){
     strucHandle = RfcAppendNewRow(tableHandle, nullptr);
-    
-    v8::Handle<v8::Value> line = this->StructureToExternal(container, strucHandle, source->CloneElementAt(i));
+
+    v8::Local<v8::Value> line = this->StructureToExternal(container, strucHandle, source->Get(i));
     // Bail out on exception
     if (IsException(line)) {
-      return scope.Close(line);
+      return scope.Escape(line);
     }
   }
 
-  return scope.Close(v8::Null());
+  return scope.Escape(Nan::Null());
 }
 
-v8::Handle<v8::Value> Function::StringToExternal(const CHND container, const SAP_UC *name, v8::Handle<v8::Value> value)
+v8::Local<v8::Value> Function::StringToExternal(const CHND container, const SAP_UC *name, v8::Local<v8::Value> value)
 {
-  v8::HandleScope scope;
+  Nan::EscapableHandleScope scope;
   RFC_RC rc = RFC_OK;
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsString()) {
-    return RFC_ERROR("Argument has unexpected type: ", v8::String::New((const uint16_t*)(name)));
+    return RfcError("Argument has unexpected type: ", (const uint16_t*)name);
   }
 
   v8::String::Value valueU16(value->ToString());
   rc = RfcSetString(container, name, (const SAP_UC*)*valueU16, valueU16.length(), &errorInfo);
   if (rc != RFC_OK) {
-    return RFC_ERROR(errorInfo);
+    return RfcError(errorInfo);
   }
 
-  return scope.Close(v8::Null());
+  return scope.Escape(Nan::Null());
 }
 
-v8::Handle<v8::Value> Function::XStringToExternal(const CHND container, const SAP_UC *name, v8::Handle<v8::Value> value)
+v8::Local<v8::Value> Function::XStringToExternal(const CHND container, const SAP_UC *name, v8::Local<v8::Value> value)
 {
-  v8::HandleScope scope;
+  Nan::EscapableHandleScope scope;
   RFC_RC rc = RFC_OK;
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsString()) {
-    return RFC_ERROR("Argument has unexpected type: ", v8::String::New((const uint16_t*)(name)));
+    return RfcError("Argument has unexpected type: ", (const uint16_t*)name);
   }
 
-  v8::String::AsciiValue valueAscii(value->ToString());
-  rc = RfcSetXString(container, name, reinterpret_cast<SAP_RAW*>(*valueAscii), valueAscii.length(), &errorInfo);
+#if NODE_VERSION_AT_LEAST(0, 12, 0)
+  v8::String::Utf8Value val(value->ToString());
+#else
+  v8::String::AsciiValue val(value->ToString());
+#endif
+  rc = RfcSetXString(container, name, reinterpret_cast<SAP_RAW*>(*val), val.length(), &errorInfo);
   if (rc != RFC_OK) {
-    return RFC_ERROR(errorInfo);
+    return RfcError(errorInfo);
   }
 
-  return scope.Close(v8::Null());
+  return scope.Escape(Nan::Null());
 }
 
-v8::Handle<v8::Value> Function::NumToExternal(const CHND container, const SAP_UC *name, v8::Handle<v8::Value> value, unsigned len)
+v8::Local<v8::Value> Function::NumToExternal(const CHND container, const SAP_UC *name, v8::Local<v8::Value> value, unsigned len)
 {
-  v8::HandleScope scope;
+  Nan::EscapableHandleScope scope;
   RFC_RC rc = RFC_OK;
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsString()) {
-    return RFC_ERROR("Argument has unexpected type: ", v8::String::New((const uint16_t*)(name)));
+    return RfcError("Argument has unexpected type: ", (const uint16_t*)name);
   }
 
   v8::String::Value valueU16(value->ToString());
   if (valueU16.length() > len) {
-    return RFC_ERROR("Argument exceeds maximum length: ", v8::String::New((const uint16_t*)(name)));
+    return RfcError("Argument exceeds maximum length: ", (const uint16_t*)name);
   }
-  
+
   rc = RfcSetNum(container, name, (const RFC_NUM*)*valueU16, valueU16.length(), &errorInfo);
   if (rc != RFC_OK) {
-    return RFC_ERROR(errorInfo);
+    return RfcError(errorInfo);
   }
 
-  return scope.Close(v8::Null());
+  return scope.Escape(Nan::Null());
 }
 
-v8::Handle<v8::Value> Function::CharToExternal(const CHND container, const SAP_UC *name, v8::Handle<v8::Value> value, unsigned len)
+v8::Local<v8::Value> Function::CharToExternal(const CHND container, const SAP_UC *name, v8::Local<v8::Value> value, unsigned len)
 {
-  v8::HandleScope scope;
+  Nan::EscapableHandleScope scope;
   RFC_RC rc = RFC_OK;
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsString()) {
-    return RFC_ERROR("Argument has unexpected type: ", v8::String::New((const uint16_t*)(name)));
+    return RfcError("Argument has unexpected type: ", (const uint16_t*)name);
   }
 
   v8::String::Value valueU16(value->ToString());
   if (valueU16.length() > len) {
-    return RFC_ERROR("Argument exceeds maximum length: ", v8::String::New((const uint16_t*)(name)));
+    return RfcError("Argument exceeds maximum length: ", (const uint16_t*)name);
   }
 
   rc = RfcSetChars(container, name, (const RFC_CHAR*)*valueU16, valueU16.length(), &errorInfo);
   if (rc != RFC_OK) {
-    return RFC_ERROR(errorInfo);
+    return RfcError(errorInfo);
   }
-  
-  return scope.Close(v8::Null());
+
+  return scope.Escape(Nan::Null());
 }
 
-v8::Handle<v8::Value> Function::ByteToExternal(const CHND container, const SAP_UC *name, v8::Handle<v8::Value> value, unsigned len)
+v8::Local<v8::Value> Function::ByteToExternal(const CHND container, const SAP_UC *name, v8::Local<v8::Value> value, unsigned len)
 {
-  v8::HandleScope scope;
+  Nan::EscapableHandleScope scope;
   RFC_RC rc = RFC_OK;
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsString()) {
-    return RFC_ERROR("Argument has unexpected type: ", v8::String::New((const uint16_t*)(name)));
+    return RfcError("Argument has unexpected type: ", (const uint16_t*)name);
   }
 
-  v8::String::AsciiValue valueAscii(value->ToString());
-  if (valueAscii.length() > len) {
-    return RFC_ERROR("Argument exceeds maximum length: ", v8::String::New((const uint16_t*)(name)));
+#if NODE_VERSION_AT_LEAST(0, 12, 0)
+  v8::String::Utf8Value val(value->ToString());
+#else
+  v8::String::AsciiValue val(value->ToString());
+#endif
+
+  if (val.length() > len) {
+    return RfcError("Argument exceeds maximum length: ", (const uint16_t*)name);
   }
-  
-  rc = RfcSetBytes(container, name, reinterpret_cast<SAP_RAW*>(*valueAscii), len, &errorInfo);
+
+  rc = RfcSetBytes(container, name, reinterpret_cast<SAP_RAW*>(*val), len, &errorInfo);
   if (rc != RFC_OK) {
-    return RFC_ERROR(errorInfo);
+    return RfcError(errorInfo);
   }
-  
-  return scope.Close(v8::Null());
+
+  return scope.Escape(Nan::Null());
 }
 
 
-v8::Handle<v8::Value> Function::IntToExternal(const CHND container, const SAP_UC *name, v8::Handle<v8::Value> value)
+v8::Local<v8::Value> Function::IntToExternal(const CHND container, const SAP_UC *name, v8::Local<v8::Value> value)
 {
-  v8::HandleScope scope;
+  Nan::EscapableHandleScope scope;
   RFC_RC rc = RFC_OK;
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsInt32()) {
-    return RFC_ERROR("Argument has unexpected type: ", v8::String::New((const uint16_t*)(name)));
+    return RfcError("Argument has unexpected type: ", (const uint16_t*)name);
   }
   RFC_INT rfcValue = value->ToInt32()->Value();
 
   rc = RfcSetInt(container, name, rfcValue, &errorInfo);
   if (rc != RFC_OK) {
-    return RFC_ERROR(errorInfo);
+    return RfcError(errorInfo);
   }
 
-  return scope.Close(v8::Null());
+  return scope.Escape(Nan::Null());
 }
 
-v8::Handle<v8::Value> Function::Int1ToExternal(const CHND container, const SAP_UC *name, v8::Handle<v8::Value> value)
+v8::Local<v8::Value> Function::Int1ToExternal(const CHND container, const SAP_UC *name, v8::Local<v8::Value> value)
 {
-  v8::HandleScope scope;
+  Nan::EscapableHandleScope scope;
   RFC_RC rc = RFC_OK;
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsInt32()) {
-    return RFC_ERROR("Argument has unexpected type: ", v8::String::New((const uint16_t*)(name)));
+    return RfcError("Argument has unexpected type: ", (const uint16_t*)name);
   }
   int32_t convertedValue = value->ToInt32()->Value();
-  if ((convertedValue < -128) || (convertedValue > 127)) {
-    return RFC_ERROR("Argument out of range: ", v8::String::New((const uint16_t*)(name)));
+  if ((convertedValue < INT8_MIN) || (convertedValue > INT8_MAX)) {
+    return RfcError("Argument out of range: ", (const uint16_t*)name);
   }
   RFC_INT1 rfcValue = convertedValue;
 
   rc = RfcSetInt1(container, name, rfcValue, &errorInfo);
   if (rc != RFC_OK) {
-    return RFC_ERROR(errorInfo);
+    return RfcError(errorInfo);
   }
 
-  return scope.Close(v8::Null());
+  return scope.Escape(Nan::Null());
 }
 
-v8::Handle<v8::Value> Function::Int2ToExternal(const CHND container, const SAP_UC *name, v8::Handle<v8::Value> value)
+v8::Local<v8::Value> Function::Int2ToExternal(const CHND container, const SAP_UC *name, v8::Local<v8::Value> value)
 {
-  v8::HandleScope scope;
+  Nan::EscapableHandleScope scope;
   RFC_RC rc = RFC_OK;
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsInt32()) {
-    return RFC_ERROR("Argument has unexpected type: ", v8::String::New((const uint16_t*)(name)));
+    return RfcError("Argument has unexpected type: ", (const uint16_t*)name);
   }
 
   int32_t convertedValue = value->ToInt32()->Value();
-  if ((convertedValue < -32768) || (convertedValue > 32767)) {
-    return RFC_ERROR("Argument out of range: ", v8::String::New((const uint16_t*)(name)));
+  if ((convertedValue < INT16_MIN) || (convertedValue > INT16_MAX)) {
+    return RfcError("Argument out of range: ", (const uint16_t*)name);
   }
   RFC_INT2 rfcValue = convertedValue;
 
   rc = RfcSetInt2(container, name, rfcValue, &errorInfo);
   if (rc != RFC_OK) {
-    return RFC_ERROR(errorInfo);
+    return RfcError(errorInfo);
   }
 
-  return scope.Close(v8::Null());
+  return scope.Escape(Nan::Null());
 }
 
-v8::Handle<v8::Value> Function::FloatToExternal(const CHND container, const SAP_UC *name, v8::Handle<v8::Value> value)
+v8::Local<v8::Value> Function::FloatToExternal(const CHND container, const SAP_UC *name, v8::Local<v8::Value> value)
 {
-  v8::HandleScope scope;
+  Nan::EscapableHandleScope scope;
   RFC_RC rc = RFC_OK;
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsNumber()) {
-    return RFC_ERROR("Argument has unexpected type: ", v8::String::New((const uint16_t*)(name)));
+    return RfcError("Argument has unexpected type: ", (const uint16_t*)name);
   }
   RFC_FLOAT rfcValue = value->ToNumber()->Value();
 
   rc = RfcSetFloat(container, name, rfcValue, &errorInfo);
   if (rc != RFC_OK) {
-    return RFC_ERROR(errorInfo);
+    return RfcError(errorInfo);
   }
 
-  return scope.Close(v8::Null());
+  return scope.Escape(Nan::Null());
 }
 
-v8::Handle<v8::Value> Function::DateToExternal(const CHND container, const SAP_UC *name, v8::Handle<v8::Value> value)
+v8::Local<v8::Value> Function::DateToExternal(const CHND container, const SAP_UC *name, v8::Local<v8::Value> value)
 {
-  v8::HandleScope scope;
+  Nan::EscapableHandleScope scope;
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsString()) {
-    return RFC_ERROR("Argument has unexpected type: ", v8::String::New((const uint16_t*)(name)));
+    return RfcError("Argument has unexpected type: ", (const uint16_t*)name);
   }
 
   v8::Local<v8::String> str = value->ToString();
   if (str->Length() != 8) {
-    return RFC_ERROR("Invalid date format: ", v8::String::New((const uint16_t*)(name)));
+    return RfcError("Invalid date format: ", (const uint16_t*)name);
   }
-  
+
   v8::String::Value rfcValue(str);
   assert(*rfcValue);
   RFC_RC rc = RfcSetDate(container, name, (const RFC_CHAR*)*rfcValue, &errorInfo);
   if (rc != RFC_OK) {
-    return RFC_ERROR(errorInfo);
+    return RfcError(errorInfo);
   }
 
-  return scope.Close(v8::Null());
+  return scope.Escape(Nan::Null());
 }
 
-v8::Handle<v8::Value> Function::TimeToExternal(const CHND container, const SAP_UC *name, v8::Handle<v8::Value> value)
+v8::Local<v8::Value> Function::TimeToExternal(const CHND container, const SAP_UC *name, v8::Local<v8::Value> value)
 {
-  v8::HandleScope scope;
+  Nan::EscapableHandleScope scope;
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsString()) {
-    return RFC_ERROR("Argument has unexpected type: ", v8::String::New((const uint16_t*)(name)));
+    return RfcError("Argument has unexpected type: ", (const uint16_t*)name);
   }
 
   v8::Local<v8::String> str = value->ToString();
   if (str->Length() != 6) {
-    return RFC_ERROR("Invalid time format: ", v8::String::New((const uint16_t*)(name)));
+    return RfcError("Invalid time format: ", (const uint16_t*)name);
   }
 
   v8::String::Value rfcValue(str);
   assert(*rfcValue);
   RFC_RC rc = RfcSetTime(container, name, (const RFC_CHAR*)*rfcValue, &errorInfo);
   if (rc != RFC_OK) {
-    return RFC_ERROR(errorInfo);
+    return RfcError(errorInfo);
   }
 
-  return scope.Close(v8::Null());
+  return scope.Escape(Nan::Null());
 }
 
-v8::Handle<v8::Value> Function::BCDToExternal(const CHND container, const SAP_UC *name, v8::Handle<v8::Value> value)
+v8::Local<v8::Value> Function::BCDToExternal(const CHND container, const SAP_UC *name, v8::Local<v8::Value> value)
 {
-  v8::HandleScope scope;
+  Nan::EscapableHandleScope scope;
   RFC_RC rc = RFC_OK;
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsNumber()) {
-    return RFC_ERROR("Argument has unexpected type: ", v8::String::New((const uint16_t*)(name)));
+    return RfcError("Argument has unexpected type: ", (const uint16_t*)name);
   }
 
   v8::String::Value valueU16(value->ToString());
-    
+
   rc = RfcSetString(container, name, (const SAP_UC*)*valueU16, valueU16.length(), &errorInfo);
   if (rc != RFC_OK) {
-    return RFC_ERROR(errorInfo);
+    return RfcError(errorInfo);
   }
-  
-  return scope.Close(v8::Null());
+
+  return scope.Escape(Nan::Null());
 }
 
-v8::Handle<v8::Value> Function::GetParameter(const CHND container, const RFC_PARAMETER_DESC &desc)
+v8::Local<v8::Value> Function::GetParameter(const CHND container, const RFC_PARAMETER_DESC &desc)
 {
-  v8::HandleScope scope;
-  return scope.Close(this->GetValue(container, desc.type, desc.name, desc.nucLength));
+  Nan::EscapableHandleScope scope;
+  return scope.Escape(this->GetValue(container, desc.type, desc.name, desc.nucLength));
 }
 
-v8::Handle<v8::Value> Function::GetField(const CHND container, const RFC_FIELD_DESC &desc)
+v8::Local<v8::Value> Function::GetField(const CHND container, const RFC_FIELD_DESC &desc)
 {
-  v8::HandleScope scope;
-  return scope.Close(this->GetValue(container, desc.type, desc.name, desc.nucLength));
+  Nan::EscapableHandleScope scope;
+  return scope.Escape(this->GetValue(container, desc.type, desc.name, desc.nucLength));
 }
 
-v8::Handle<v8::Value> Function::GetValue(const CHND container, RFCTYPE type, const SAP_UC *name, unsigned len)
+v8::Local<v8::Value> Function::GetValue(const CHND container, RFCTYPE type, const SAP_UC *name, unsigned len)
 {
-  v8::HandleScope scope;
-  v8::Handle<v8::Value> value = v8::Null();
+  Nan::EscapableHandleScope scope;
+  v8::Local<v8::Value> value = Nan::Null();
 
   switch (type) {
     case RFCTYPE_DATE:
@@ -866,32 +877,31 @@ v8::Handle<v8::Value> Function::GetValue(const CHND container, RFCTYPE type, con
       break;
     default:
       // Type not implemented
-      assert(0);
-      return RFC_ERROR("RFC type not implemented: ", v8::Uint32::New(type)->ToString());
+      return RfcError("RFC type not implemented: ", Nan::New<v8::Uint32>(type)->ToString());
       break;
   }
 
-  return scope.Close(value);
+  return scope.Escape(value);
 }
 
-v8::Handle<v8::Value> Function::StructureToInternal(const CHND container, const SAP_UC *name)
+v8::Local<v8::Value> Function::StructureToInternal(const CHND container, const SAP_UC *name)
 {
-  v8::HandleScope scope;
+  Nan::EscapableHandleScope scope;
   RFC_ERROR_INFO errorInfo;
   RFC_RC rc = RFC_OK;
   RFC_STRUCTURE_HANDLE strucHandle;
 
   rc = RfcGetStructure(container, name, &strucHandle, &errorInfo);
   if (rc != RFC_OK) {
-    return RFC_ERROR(errorInfo);
+    return RfcError(errorInfo);
   }
 
-  return scope.Close(this->StructureToInternal(container, strucHandle));
+  return scope.Escape(this->StructureToInternal(container, strucHandle));
 }
 
-v8::Handle<v8::Value> Function::StructureToInternal(const CHND container, const RFC_STRUCTURE_HANDLE struc)
+v8::Local<v8::Value> Function::StructureToInternal(const CHND container, const RFC_STRUCTURE_HANDLE struc)
 {
-  v8::HandleScope scope;
+  Nan::EscapableHandleScope scope;
   RFC_ERROR_INFO errorInfo;
   RFC_RC rc = RFC_OK;
   RFC_TYPE_DESC_HANDLE typeHandle;
@@ -901,36 +911,36 @@ v8::Handle<v8::Value> Function::StructureToInternal(const CHND container, const 
   typeHandle = RfcDescribeType(struc, &errorInfo);
   assert(typeHandle);
   if (typeHandle == nullptr) {
-    return RFC_ERROR(errorInfo);
+    return RfcError(errorInfo);
   }
 
   rc = RfcGetFieldCount(typeHandle, &fieldCount, &errorInfo);
   if (rc != RFC_OK) {
-    return RFC_ERROR(errorInfo);
+    return RfcError(errorInfo);
   }
 
-  v8::Local<v8::Object> obj = v8::Object::New();
+  v8::Local<v8::Object> obj = Nan::New<v8::Object>();
 
   for (unsigned int i = 0; i < fieldCount; i++) {
     rc = RfcGetFieldDescByIndex(typeHandle, i, &fieldDesc, &errorInfo);
     if (rc != RFC_OK) {
-      return RFC_ERROR(errorInfo);
+      return RfcError(errorInfo);
     }
 
-    v8::Handle<v8::Value> value = this->GetField(struc, fieldDesc);
+    v8::Local<v8::Value> value = this->GetField(struc, fieldDesc);
     // Bail out on exception
     if (IsException(value)) {
-      return scope.Close(value);
+      return scope.Escape(value);
     }
-    obj->Set(v8::String::New((const uint16_t*)(fieldDesc.name)), value);
+    obj->Set(Nan::New<v8::String>((const uint16_t*)(fieldDesc.name)).ToLocalChecked(), value);
   }
 
-  return scope.Close(obj);
+  return scope.Escape(obj);
 }
 
-v8::Handle<v8::Value> Function::TableToInternal(const CHND container, const SAP_UC *name)
+v8::Local<v8::Value> Function::TableToInternal(const CHND container, const SAP_UC *name)
 {
-  v8::HandleScope scope;
+  Nan::EscapableHandleScope scope;
   RFC_ERROR_INFO errorInfo;
   RFC_RC rc = RFC_OK;
   RFC_TABLE_HANDLE tableHandle;
@@ -939,257 +949,259 @@ v8::Handle<v8::Value> Function::TableToInternal(const CHND container, const SAP_
 
   rc = RfcGetTable(container, name, &tableHandle, &errorInfo);
   if (rc != RFC_OK) {
-    return RFC_ERROR(errorInfo);
+    return RfcError(errorInfo);
   }
 
   rc = RfcGetRowCount(tableHandle, &rowCount, nullptr);
   if (rc != RFC_OK) {
-    return RFC_ERROR(errorInfo);
+    return RfcError(errorInfo);
   }
 
   // Create array holding table lines
-  v8::Local<v8::Array> obj = v8::Array::New();
-  
+  v8::Local<v8::Array> obj = Nan::New<v8::Array>();
+
   for (unsigned int i = 0; i < rowCount; i++){
     RfcMoveTo(tableHandle, i, nullptr);
     strucHandle = RfcGetCurrentRow(tableHandle, nullptr);
 
-    v8::Handle<v8::Value> line = this->StructureToInternal(container, strucHandle);
+    v8::Local<v8::Value> line = this->StructureToInternal(container, strucHandle);
     // Bail out on exception
     if (IsException(line)) {
-      return scope.Close(line);
+      return scope.Escape(line);
     }
-    obj->Set(v8::Integer::New(i), line);
+    obj->Set(i, line);
   }
 
-  return scope.Close(obj);
+  return scope.Escape(obj);
 }
 
-v8::Handle<v8::Value> Function::StringToInternal(const CHND container, const SAP_UC *name)
+v8::Local<v8::Value> Function::StringToInternal(const CHND container, const SAP_UC *name)
 {
-  v8::HandleScope scope;
+  Nan::EscapableHandleScope scope;
   RFC_RC rc = RFC_OK;
   RFC_ERROR_INFO errorInfo;
   unsigned strLen, retStrLen;
 
   rc = RfcGetStringLength(container, name, &strLen, &errorInfo);
   if (rc != RFC_OK) {
-    return RFC_ERROR(errorInfo);
+    return RfcError(errorInfo);
   }
 
   if (strLen == 0) {
-    return scope.Close(v8::String::New(""));
+    return scope.Escape(Nan::New<v8::String>("").ToLocalChecked());
   }
 
   SAP_UC *buffer = static_cast<SAP_UC*>(malloc((strLen + 1) * sizeof(SAP_UC)));
   assert(buffer);
   memset(buffer, 0, (strLen + 1) * sizeof(SAP_UC));
-  
+
   rc = RfcGetString(container, name, buffer, strLen + 1, &retStrLen, &errorInfo);
   if (rc != RFC_OK) {
     free(buffer);
-    return RFC_ERROR(errorInfo);
+    return RfcError(errorInfo);
   }
-  
-  v8::Local<v8::String> value = v8::String::New((const uint16_t*)(buffer));
+
+  v8::Local<v8::String> value = Nan::New<v8::String>((const uint16_t*)(buffer)).ToLocalChecked();
 
   free(buffer);
-      
-  return scope.Close(value);
+
+  return scope.Escape(value);
 }
 
-v8::Handle<v8::Value> Function::XStringToInternal(const CHND container, const SAP_UC *name)
+v8::Local<v8::Value> Function::XStringToInternal(const CHND container, const SAP_UC *name)
 {
-  v8::HandleScope scope;
+  Nan::EscapableHandleScope scope;
   RFC_RC rc = RFC_OK;
   RFC_ERROR_INFO errorInfo;
   unsigned strLen, retStrLen;
 
   rc = RfcGetStringLength(container, name, &strLen, &errorInfo);
   if (rc != RFC_OK) {
-    return RFC_ERROR(errorInfo);
+    return RfcError(errorInfo);
   }
 
   if (strLen == 0) {
-    return scope.Close(v8::String::New(""));
+    return scope.Escape(Nan::New<v8::String>("").ToLocalChecked());
   }
 
   SAP_RAW *buffer = static_cast<SAP_RAW*>(malloc(strLen * sizeof(SAP_RAW)));
   assert(buffer);
   memset(buffer, 0, strLen * sizeof(SAP_RAW));
-  
+
   rc = RfcGetXString(container, name, buffer, strLen, &retStrLen, &errorInfo);
   if (rc != RFC_OK) {
     free(buffer);
-    return RFC_ERROR(errorInfo);
+    return RfcError(errorInfo);
   }
-  
-  v8::Local<v8::String> value = v8::String::New(reinterpret_cast<char*>(buffer), strLen);
+
+  v8::Local<v8::String> value = Nan::New<v8::String>(reinterpret_cast<char*>(buffer), strLen).ToLocalChecked();
 
   free(buffer);
-      
-  return scope.Close(value);
+
+  return scope.Escape(value);
 }
 
-v8::Handle<v8::Value> Function::NumToInternal(const CHND container, const SAP_UC *name, unsigned len)
+v8::Local<v8::Value> Function::NumToInternal(const CHND container, const SAP_UC *name, unsigned len)
 {
-  v8::HandleScope scope;
+  Nan::EscapableHandleScope scope;
   RFC_ERROR_INFO errorInfo;
 
   RFC_NUM *buffer = static_cast<RFC_NUM*>(malloc((len + 1) * sizeof(RFC_NUM)));
   assert(buffer);
   memset(buffer, 0, (len + 1) * sizeof(RFC_NUM));
-  
+
   RFC_RC rc = RfcGetNum(container, name, buffer, len, &errorInfo);
   if (rc != RFC_OK) {
     free(buffer);
-    return RFC_ERROR(errorInfo);
+    return RfcError(errorInfo);
   }
-  
-  v8::Local<v8::String> value = v8::String::New((const uint16_t*)(buffer));
+
+  v8::Local<v8::String> value = Nan::New<v8::String>((const uint16_t*)(buffer)).ToLocalChecked();
 
   free(buffer);
-      
-  return scope.Close(value);
+
+  return scope.Escape(value);
 }
 
-v8::Handle<v8::Value> Function::CharToInternal(const CHND container, const SAP_UC *name, unsigned len)
+v8::Local<v8::Value> Function::CharToInternal(const CHND container, const SAP_UC *name, unsigned len)
 {
-  v8::HandleScope scope;
+  Nan::EscapableHandleScope scope;
   RFC_ERROR_INFO errorInfo;
 
   RFC_CHAR *buffer = static_cast<RFC_CHAR*>(malloc((len + 1) * sizeof(RFC_CHAR)));
   assert(buffer);
   memset(buffer, 0, (len + 1) * sizeof(RFC_CHAR));
-  
+
   RFC_RC rc = RfcGetChars(container, name, buffer, len, &errorInfo);
   if (rc != RFC_OK) {
     free(buffer);
-    return RFC_ERROR(errorInfo);
+    return RfcError(errorInfo);
   }
-  
-  v8::Local<v8::String> value = v8::String::New((const uint16_t*)(buffer));
+
+  v8::Local<v8::String> value = Nan::New<v8::String>((const uint16_t*)(buffer)).ToLocalChecked();
 
   free(buffer);
-      
-  return scope.Close(value);
+
+  return scope.Escape(value);
 }
 
-v8::Handle<v8::Value> Function::ByteToInternal(const CHND container, const SAP_UC *name, unsigned len)
+v8::Local<v8::Value> Function::ByteToInternal(const CHND container, const SAP_UC *name, unsigned len)
 {
-  v8::HandleScope scope;
+  Nan::EscapableHandleScope scope;
   RFC_ERROR_INFO errorInfo;
 
   RFC_BYTE *buffer = static_cast<RFC_BYTE*>(malloc(len * sizeof(RFC_BYTE)));
   assert(buffer);
   memset(buffer, 0, len * sizeof(RFC_BYTE));
-  
+
   RFC_RC rc = RfcGetBytes(container, name, buffer, len, &errorInfo);
   if (rc != RFC_OK) {
     free(buffer);
-    return RFC_ERROR(errorInfo);
+    return RfcError(errorInfo);
   }
-  
-  v8::Local<v8::String> value = v8::String::New(reinterpret_cast<const char*>(buffer));
+
+  v8::Local<v8::String> value = Nan::New<v8::String>(reinterpret_cast<const char*>(buffer)).ToLocalChecked();
 
   free(buffer);
-      
-  return scope.Close(value);
+
+  return scope.Escape(value);
 }
 
-v8::Handle<v8::Value> Function::IntToInternal(const CHND container, const SAP_UC *name)
+v8::Local<v8::Value> Function::IntToInternal(const CHND container, const SAP_UC *name)
 {
-  v8::HandleScope scope;
+  Nan::EscapableHandleScope scope;
   RFC_ERROR_INFO errorInfo;
   RFC_INT value;
 
   RFC_RC rc = RfcGetInt(container, name, &value, &errorInfo);
   if (rc != RFC_OK) {
-    return RFC_ERROR(errorInfo);
+    return RfcError(errorInfo);
   }
 
-  return scope.Close(v8::Integer::New(value));
+  return scope.Escape(Nan::New<v8::Integer>(value));
 }
 
-v8::Handle<v8::Value> Function::Int1ToInternal(const CHND container, const SAP_UC *name)
+v8::Local<v8::Value> Function::Int1ToInternal(const CHND container, const SAP_UC *name)
 {
-  v8::HandleScope scope;
+  Nan::EscapableHandleScope scope;
   RFC_ERROR_INFO errorInfo;
   RFC_INT1 value;
 
   RFC_RC rc = RfcGetInt1(container, name, &value, &errorInfo);
   if (rc != RFC_OK) {
-    return RFC_ERROR(errorInfo);
+    return RfcError(errorInfo);
   }
 
-  return scope.Close(v8::Integer::New(value));
+  return scope.Escape(Nan::New<v8::Integer>(value));
 }
 
-v8::Handle<v8::Value> Function::Int2ToInternal(const CHND container, const SAP_UC *name)
+v8::Local<v8::Value> Function::Int2ToInternal(const CHND container, const SAP_UC *name)
 {
-  v8::HandleScope scope;
+  Nan::EscapableHandleScope scope;
   RFC_ERROR_INFO errorInfo;
   RFC_INT2 value;
 
   RFC_RC rc = RfcGetInt2(container, name, &value, &errorInfo);
   if (rc != RFC_OK) {
-    return RFC_ERROR(errorInfo);
+    return RfcError(errorInfo);
   }
 
-  return scope.Close(v8::Integer::New(value));
+  return scope.Escape(Nan::New<v8::Integer>(value));
 }
 
-v8::Handle<v8::Value> Function::FloatToInternal(const CHND container, const SAP_UC *name)
+v8::Local<v8::Value> Function::FloatToInternal(const CHND container, const SAP_UC *name)
 {
-  v8::HandleScope scope;
+  Nan::EscapableHandleScope scope;
   RFC_ERROR_INFO errorInfo;
   RFC_FLOAT value;
 
   RFC_RC rc = RfcGetFloat(container, name, &value, &errorInfo);
   if (rc != RFC_OK) {
-    return RFC_ERROR(errorInfo);
+    return RfcError(errorInfo);
   }
 
-  return scope.Close(v8::Number::New(value));
+  return scope.Escape(Nan::New<v8::Number>(value));
 }
 
-v8::Handle<v8::Value> Function::DateToInternal(const CHND container, const SAP_UC *name)
+v8::Local<v8::Value> Function::DateToInternal(const CHND container, const SAP_UC *name)
 {
-  v8::HandleScope scope;
+  Nan::EscapableHandleScope scope;
   RFC_ERROR_INFO errorInfo;
   RFC_DATE date = { 0 };
 
   RFC_RC rc = RfcGetDate(container, name, date, &errorInfo);
   if (rc != RFC_OK) {
-    return RFC_ERROR(errorInfo);
+    return RfcError(errorInfo);
   }
 
   assert(sizeof(RFC_CHAR) > 0); // Shouldn't occur except in case of a compiler glitch
-  v8::Local<v8::String> value = v8::String::New((const uint16_t*)(date), sizeof(RFC_DATE) / sizeof(RFC_CHAR));
+  v8::Local<v8::String> value = Nan::New<v8::String>(
+    (const uint16_t*)(date), sizeof(RFC_DATE) / sizeof(RFC_CHAR)).ToLocalChecked();
 
-  return scope.Close(value);
+  return scope.Escape(value);
 }
 
-v8::Handle<v8::Value> Function::TimeToInternal(const CHND container, const SAP_UC *name)
+v8::Local<v8::Value> Function::TimeToInternal(const CHND container, const SAP_UC *name)
 {
-  v8::HandleScope scope;
+  Nan::EscapableHandleScope scope;
   RFC_ERROR_INFO errorInfo;
   RFC_TIME time = { 0 };
 
   RFC_RC rc = RfcGetTime(container, name, time, &errorInfo);
   if (rc != RFC_OK) {
-    return RFC_ERROR(errorInfo);
+    return RfcError(errorInfo);
   }
 
   assert(sizeof(RFC_CHAR) > 0); // Shouldn't occur except in case of a compiler glitch
-  v8::Local<v8::String> value = v8::String::New((const uint16_t*)(time), sizeof(RFC_TIME) / sizeof(RFC_CHAR));
-      
-  return scope.Close(value);
+  v8::Local<v8::String> value = Nan::New<v8::String>(
+    (const uint16_t*)(time), sizeof(RFC_TIME) / sizeof(RFC_CHAR)).ToLocalChecked();
+
+  return scope.Escape(value);
 }
 
-v8::Handle<v8::Value> Function::BCDToInternal(const CHND container, const SAP_UC *name)
+v8::Local<v8::Value> Function::BCDToInternal(const CHND container, const SAP_UC *name)
 {
-  v8::HandleScope scope;
+  Nan::EscapableHandleScope scope;
   RFC_RC rc = RFC_OK;
   RFC_ERROR_INFO errorInfo;
   unsigned strLen = 25;
@@ -1200,7 +1212,7 @@ v8::Handle<v8::Value> Function::BCDToInternal(const CHND container, const SAP_UC
     buffer = static_cast<SAP_UC*>(malloc((strLen + 1) * sizeof(SAP_UC)));
     assert(buffer);
     memset(buffer, 0, (strLen + 1) * sizeof(SAP_UC));
-  
+
     rc = RfcGetString(container, name, buffer, strLen + 1, &retStrLen, &errorInfo);
 
     if (rc == RFC_BUFFER_TOO_SMALL) {
@@ -1208,20 +1220,20 @@ v8::Handle<v8::Value> Function::BCDToInternal(const CHND container, const SAP_UC
       free(buffer);
       strLen = retStrLen;
     } else if (rc != RFC_OK) {
-      return RFC_ERROR(errorInfo);
+      return RfcError(errorInfo);
     }
   } while (rc == RFC_BUFFER_TOO_SMALL);
-  
-  v8::Local<v8::String> value = v8::String::New((const uint16_t*)(buffer), retStrLen);
+
+  v8::Local<v8::String> value = Nan::New<v8::String>((const uint16_t*)(buffer), retStrLen).ToLocalChecked();
 
   free(buffer);
-      
-  return scope.Close(value->ToNumber());
+
+  return scope.Escape(value->ToNumber());
 }
 
-std::string Function::mapExternalTypeToJavaScriptType( RFCTYPE sapType)
+std::string Function::mapExternalTypeToJavaScriptType(RFCTYPE sapType)
 {
-  switch( sapType) {
+  switch (sapType) {
     case RFCTYPE_CHAR:
     case RFCTYPE_DATE:
     case RFCTYPE_TIME:
@@ -1260,7 +1272,6 @@ std::string Function::mapExternalTypeToJavaScriptType( RFCTYPE sapType)
 
 }
 
-
 bool Function::addMetaData(const CHND container, v8::Local<v8::Object> &parent,
                            const RFC_ABAP_NAME name, RFCTYPE type,
                            unsigned int length, RFC_DIRECTION direction,
@@ -1268,27 +1279,36 @@ bool Function::addMetaData(const CHND container, v8::Local<v8::Object> &parent,
 {
   RFC_RC rc = RFC_OK;
 
-  v8::Local<v8::Object> actualType = v8::Object::New();
-  parent->Set(v8::String::New((const uint16_t*)name), actualType);
+  v8::Local<v8::Object> actualType = Nan::New<v8::Object>();
+  parent->Set(Nan::New<v8::String>((const uint16_t*)name).ToLocalChecked(), actualType);
 
-  actualType->Set(v8::String::New("type"), v8::String::New(mapExternalTypeToJavaScriptType(type).c_str()));
+  actualType->Set(
+    Nan::New<v8::String>("type").ToLocalChecked(),
+    Nan::New<v8::String>(mapExternalTypeToJavaScriptType(type).c_str()).ToLocalChecked());
 
   std::stringstream lengthString;
   lengthString << length;
-  actualType->Set(v8::String::New("length"), v8::String::New(lengthString.str().c_str()));
+  actualType->Set(
+    Nan::New<v8::String>("length").ToLocalChecked(),
+    Nan::New<v8::String>(lengthString.str().c_str()).ToLocalChecked());
 
-  actualType->Set(v8::String::New("sapType"), v8::String::New((uint16_t*)RfcGetTypeAsString(type)));
+  actualType->Set(
+    Nan::New<v8::String>("sapType").ToLocalChecked(),
+    Nan::New<v8::String>((uint16_t*)RfcGetTypeAsString(type)).ToLocalChecked());
 
-  if(paramText != nullptr) {
-	  actualType->Set(v8::String::NewSymbol("description"), v8::String::New((const uint16_t*)paramText));
+  if (paramText != nullptr) {
+	  actualType->Set(
+        Nan::New<v8::String>("description").ToLocalChecked(),
+        Nan::New<v8::String>((const uint16_t*)paramText).ToLocalChecked());
   }
 
-  if( direction != 0) {
-    actualType->Set(v8::String::New("sapDirection"), v8::String::New((uint16_t*)RfcGetDirectionAsString(direction)));
+  if (direction != 0) {
+    actualType->Set(
+        Nan::New<v8::String>("sapDirection").ToLocalChecked(),
+        Nan::New<v8::String>((uint16_t*)RfcGetDirectionAsString(direction)).ToLocalChecked());
   }
 
-  if( type == RFCTYPE_STRUCTURE)
-  {
+  if (type == RFCTYPE_STRUCTURE) {
     RFC_STRUCTURE_HANDLE strucHandle;
     RFC_TYPE_DESC_HANDLE typeHandle;
     RFC_FIELD_DESC fieldDesc;
@@ -1311,15 +1331,17 @@ bool Function::addMetaData(const CHND container, v8::Local<v8::Object> &parent,
       return false;
     }
 
-	actualType->Set(v8::String::NewSymbol("sapTypeName"), v8::String::New((const uint16_t*)typeName));
+	actualType->Set(
+        Nan::New<v8::String>("sapTypeName").ToLocalChecked(),
+        Nan::New<v8::String>((const uint16_t*)typeName).ToLocalChecked());
 
     rc = RfcGetFieldCount(typeHandle, &fieldCount, errorInfo);
     if (rc != RFC_OK) {
       return false;
     }
 
-	v8::Local<v8::Object> properties = v8::Object::New();
-    actualType->Set(v8::String::New("properties"), properties);
+	v8::Local<v8::Object> properties = Nan::New<v8::Object>();
+    actualType->Set(Nan::New<v8::String>("properties").ToLocalChecked(), properties);
 
     for (unsigned int i = 0; i < fieldCount; i++) {
       rc = RfcGetFieldDescByIndex(typeHandle, i, &fieldDesc, errorInfo);
@@ -1327,14 +1349,13 @@ bool Function::addMetaData(const CHND container, v8::Local<v8::Object> &parent,
         return false;
       }
 
-      if( !addMetaData( strucHandle, properties, fieldDesc.name, fieldDesc.type,
+      if (!addMetaData( strucHandle, properties, fieldDesc.name, fieldDesc.type,
                    fieldDesc.nucLength, RFC_DIRECTION(0), errorInfo)) {
         return false;
       }
     }
   }
-  else if( type == RFCTYPE_TABLE)
-  {
+  else if (type == RFCTYPE_TABLE) {
     RFC_TABLE_HANDLE tableHandle;
     RFC_TYPE_DESC_HANDLE typeHandle;
     RFC_FIELD_DESC fieldDesc;
@@ -1368,14 +1389,18 @@ bool Function::addMetaData(const CHND container, v8::Local<v8::Object> &parent,
       return false;
     }
 
-    v8::Local<v8::Object> items = v8::Object::New();
-    actualType->Set(v8::String::New("items"), items);	
-	items->Set(v8::String::NewSymbol("sapTypeName"), v8::String::New((const uint16_t*)typeName));
+    v8::Local<v8::Object> items = Nan::New<v8::Object>();
+    actualType->Set(Nan::New<v8::String>("items").ToLocalChecked(), items);
+	items->Set(
+      Nan::New<v8::String>("sapTypeName").ToLocalChecked(),
+      Nan::New<v8::String>((const uint16_t*)typeName).ToLocalChecked());
 
-    items->Set(v8::String::New("type"), v8::String::New("object"));
+    items->Set(
+      Nan::New<v8::String>("type").ToLocalChecked(),
+      Nan::New<v8::String>("object").ToLocalChecked());
 
-    v8::Local<v8::Object> properties = v8::Object::New();
-    items->Set(v8::String::New("properties"), properties);
+    v8::Local<v8::Object> properties = Nan::New<v8::Object>();
+    items->Set(Nan::New<v8::String>("properties").ToLocalChecked(), properties);
 
     RFC_STRUCTURE_HANDLE rowHandle = RfcAppendNewRow(tableHandle, errorInfo);
     if (rc != RFC_OK) {
@@ -1388,7 +1413,7 @@ bool Function::addMetaData(const CHND container, v8::Local<v8::Object> &parent,
         return false;
       }
 
-      if( !addMetaData( rowHandle, properties, fieldDesc.name, fieldDesc.type,
+      if (!addMetaData( rowHandle, properties, fieldDesc.name, fieldDesc.type,
                    fieldDesc.nucLength, RFC_DIRECTION(0), errorInfo)) {
         return false;
       }

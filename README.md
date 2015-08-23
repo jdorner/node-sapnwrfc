@@ -33,7 +33,7 @@ OS X is **not supported** due to the fact that there is no suitable SAP RFC NW S
 
 ## Installation (both Linux and Windows)
 
-- You may now download the addon from the [npm registry](http://search.npmjs.org) and install it by using the `npm` command. 
+- You may now download the addon from the [npm registry](http://search.npmjs.org) and install it by using the `npm` command.
 
 ```sh
 npm install sapnwrfc
@@ -71,14 +71,14 @@ var conParams = {
 Before you can invoke a remote function, you will have to open a connection to the SAP system.
 
 ```js
-Connection.Open( connectionParameters, callback( errorObject ) )
+Connection.Open( connectionParameters, callback( errorObject ) );
 ```
 
 - **connectionParameters:** JavaScript object containing the parameters used for connecting to a SAP system (see above)
 - **callback:** A function to be executed after the connection has been attempted. In case of an error, an errorObject will be passed as an argument.
 
 ```js
-versionInfo = Connection.GetVersion( )
+versionInfo = Connection.GetVersion( );
 ```
 
 - **versionInfo:** An Array containing major number, minor number and patch level of the NW RFC SDK
@@ -145,7 +145,7 @@ Example:
 ```js
 var params = {
   QUESTION: 'How are you'
-}
+};
 
 var func = con.Lookup('STFC_STRING');
 func.Invoke(params, function(err, result) {
@@ -153,7 +153,7 @@ func.Invoke(params, function(err, result) {
     console.log(err);
     return;
   }
-  
+
   console.log(result);
 });
 ```
@@ -167,7 +167,7 @@ Example:
 ```js
 var params = {
   IMPORTSTRUCT: { RFCFLOAT: 3.14159, RFCINT1: 123, RFCTIME: '094500', RFCCHAR4: 'NODE' }
-}
+};
 
 var func = con.Lookup('STFC_STRUCTURE');
 func.Invoke(params, function(err, result) {
@@ -195,7 +195,7 @@ var table = [
 
 var params = {
   IMPORT_TAB: table
-}
+};
 
 var func = con.Lookup('STFC_DEEP_TABLE');
 func.Invoke(params, function(err, result) {
@@ -287,7 +287,7 @@ Attributes with the prefix *sap* are specific to this JSON Schema instance.
 - Use of buffers for xstring/byte
 - Event emission on disconnect
 
-## License 
+## License
 
 (The MIT License)
 
