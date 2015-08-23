@@ -7,3 +7,4 @@ compiled
 .node-gyp
 .lock*
 npm-debug.log
+dev_rfc.trc
