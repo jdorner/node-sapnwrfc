@@ -532,7 +532,7 @@ v8::Local<v8::Value> Function::TableToExternal(const CHND container, const SAP_U
   v8::Local<v8::Array> source = v8::Local<v8::Array>::Cast(value);
   rowCount = source->Length();
 
-  for (uint32_t i = 1; i <= rowCount; i++){
+  for (uint32_t i = 0; i < rowCount; i++){
     strucHandle = RfcAppendNewRow(tableHandle, nullptr);
 
     v8::Local<v8::Value> line = this->StructureToExternal(container, strucHandle, source->Get(i));
