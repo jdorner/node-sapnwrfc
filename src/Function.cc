@@ -574,11 +574,11 @@ v8::Local<v8::Value> Function::XStringToExternal(const CHND container, const SAP
     return RfcError("Argument has unexpected type: ", (const uint16_t*)name);
   }
 
-#if NODE_VERSION_AT_LEAST(0, 12, 0)
-  v8::String::Utf8Value val(value->ToString());
-#else
-  v8::String::AsciiValue val(value->ToString());
-#endif
+  Nan::Utf8String val(value->ToString());
+  if (*val == nullptr) {
+    return RfcError("XString conversion failed: ", (const uint16_t*)name);
+  }
+
   rc = RfcSetXString(container, name, reinterpret_cast<SAP_RAW*>(*val), val.length(), &errorInfo);
   if (rc != RFC_OK) {
     return RfcError(errorInfo);
@@ -643,11 +643,10 @@ v8::Local<v8::Value> Function::ByteToExternal(const CHND container, const SAP_UC
     return RfcError("Argument has unexpected type: ", (const uint16_t*)name);
   }
 
-#if NODE_VERSION_AT_LEAST(0, 12, 0)
-  v8::String::Utf8Value val(value->ToString());
-#else
-  v8::String::AsciiValue val(value->ToString());
-#endif
+  Nan::Utf8String val(value->ToString());
+  if (*val == nullptr) {
+    return RfcError("Byte conversion failed: ", (const uint16_t*)name);
+  }
 
   if (val.length() < 0 || (static_cast<unsigned int>(val.length()) > len)) {
     return RfcError("Argument exceeds maximum length: ", (const uint16_t*)name);
@@ -988,7 +987,7 @@ v8::Local<v8::Value> Function::StringToInternal(const CHND container, const SAP_
   }
 
   if (strLen == 0) {
-    return scope.Escape(Nan::New<v8::String>("").ToLocalChecked());
+    return scope.Escape(Nan::EmptyString());
   }
 
   SAP_UC *buffer = static_cast<SAP_UC*>(malloc((strLen + 1) * sizeof(SAP_UC)));
@@ -1021,7 +1020,7 @@ v8::Local<v8::Value> Function::XStringToInternal(const CHND container, const SAP
   }
 
   if (strLen == 0) {
-    return scope.Escape(Nan::New<v8::String>("").ToLocalChecked());
+    return scope.Escape(Nan::EmptyString());
   }
 
   SAP_RAW *buffer = static_cast<SAP_RAW*>(malloc(strLen * sizeof(SAP_RAW)));
