@@ -1,10 +1,11 @@
+.lock*
+.node-gyp
+.vscode
+build
 build.sh
 clean.sh
-nwrfcsdk
-node_modules
-build
 compiled
-.node-gyp
-.lock*
-npm-debug.log
 dev_rfc.trc
+node_modules
+npm-debug.log
+nwrfcsdk
