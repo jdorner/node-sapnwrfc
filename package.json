@@ -1,20 +1,21 @@
 {
-    "name": "sapnwrfc"
-  , "version": "0.1.5"
-  , "description": "Bindings for the SAP NetWeaver RFC SDK"
-  , "homepage": "https://github.com/jdorner/node-sapnwrfc"
-  , "repository": { "type": "git", "url": "git://github.com/jdorner/node-sapnwrfc.git" }
-  , "keywords": ["sapnwrfc", "sap", "rfc" ]
-  , "author": "Joachim Dorner <joachim.dorner@gmail.com>"
-  , "main": "sapnwrfc"
-  , "engines": {
+  "name": "sapnwrfc",
+  "version": "0.1.5",
+  "description": "Bindings for the SAP NetWeaver RFC SDK",
+  "license": "MIT",
+  "homepage": "https://github.com/jdorner/node-sapnwrfc",
+  "repository": { "type": "git", "url": "git://github.com/jdorner/node-sapnwrfc.git" },
+  "keywords": ["sapnwrfc", "sap", "rfc" ],
+  "author": "Joachim Dorner <joachim.dorner@gmail.com>",
+  "main": "sapnwrfc",
+  "engines": {
       "node": ">= 0.8.0",
       "iojs": ">= 1.0.0"
-    }
-  , "dependencies": {
+    },
+  "dependencies": {
         "bindings": ">=0.3.0"
-  }
-  , "scripts": {
+  },
+  "scripts": {
     "install": "node preinstall.js"
   }
 }
