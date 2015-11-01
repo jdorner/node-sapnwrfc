@@ -264,11 +264,14 @@ Attributes with the prefix *sap* are specific to this JSON Schema instance.
 
 ## Changelog
 
+### 0.1.7 (2015-11-01)
+- Add gulp script for bulk compiling
+
 ### 0.1.6 (2015-11-01)
 - Support for Node.js 4.x (and io.js)
 - Fix library path issue (Windows)
 - Add parameter msvs_nwrfcsdk_path for node-gyp
-- add MetaData()
+- Add MetaData()
 
 ### 0.1.5 (2013-05-25)
 - Support for Node.js 0.10
