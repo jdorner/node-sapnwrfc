@@ -1,6 +1,6 @@
 {
     "name": "sapnwrfc",
-    "version": "0.1.5",
+    "version": "0.1.6",
     "description": "Bindings for the SAP NetWeaver RFC SDK",
     "license": "MIT",
     "homepage": "https://github.com/jdorner/node-sapnwrfc",
