@@ -1,11 +1,10 @@
+var os = require('os');
 var child_process = require('child_process');
 var red = '\u001b[31m',
   green = '\u001b[32m',
   reset = '\u001b[0m';
 
 var nodeGyp = function () {
-  var os = require('os');
-
   switch (os.platform()) {
     case 'win32':
       return 'node-gyp.cmd';
@@ -17,6 +16,10 @@ var nodeGyp = function () {
 };
 
 var rebuild = function () {
+  if (os.platform() === 'darwin') {
+    return console.log('NOT SUPPORTED UNDER DARWIN.');
+  };
+
   try {
     var majMinVersion = process.versions.node.match(/^[0-9]+.[0-9]+/)[0] || '';
     var bindings = require('bindings')({ bindings: 'sapnwrfc', version: majMinVersion });
