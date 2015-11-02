@@ -4,8 +4,10 @@
 build
 build.sh
 clean.sh
-compiled
 dev_rfc.trc
 node_modules
 npm-debug.log
 nwrfcsdk
+*.sar
+*.exe
+*.smf

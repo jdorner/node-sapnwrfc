@@ -1,0 +1,36 @@
+version: "{build}"
+skip_tags: true
+
+environment:
+  SAPNWRFC_CRED:
+    secure: YOUR_ENCRYPTED_SAP_CREDENTIALS_FOR_DOWNLOAD
+  SAPNWRFC_HOME: C:\projects\sapnwnode-rfc\nwrfcsdk
+  NODE_VERSION: 4.2.1
+  NODE_VERSION_SHORT: 4.2
+  ACCESS_TOKEN:
+    secure: YOUR_ENCRYPTED_GITHUB_ACCESS_TOKEN
+
+install:
+  - git checkout %APPVEYOR_REPO_BRANCH%
+  - ps: Install-Product node $env:NODE_VERSION x64
+  - ps: choco install -y curl
+  - curl -L -u %SAPNWRFC_CRED% -o SAPCAR_0-80000938.EXE "https://smpdla.sap.com/00000674/279/SAPCAR_0-80000938.EXE?object_id=012002523100006086842015D&filepath=00000674%%%%5c279%%%%5cSAPCAR_0-80000938%%%%2eEXE&uid=S0015138022&LOC=FRA&iesfx=.exe"
+  - curl -L -u %SAPNWRFC_CRED% -o NWRFC_36-20004568.SAR "https://smpdl.sap-ag.de/~swdc/012002523100013832132015D/NWRFC_36-20004568.SAR?_ACTION=DL_DIRECT"
+  - .\SAPCAR_0-80000938.EXE -xvf NWRFC_36-20004568.SAR
+
+build_script:
+  - set PATH=%PATH%;%SAPNWRFC_HOME%\lib
+  - rmdir /S /Q compiled\%NODE_VERSION_SHORT%\win32\x64
+  - npm install
+  - mkdir compiled\%NODE_VERSION_SHORT%\win32\x64
+  - copy /Y build\Release\sapnwrfc.node compiled\%NODE_VERSION_SHORT%\win32\x64\sapnwrfc.node
+
+test: off
+
+deploy_script:
+  - git config --global credential.helper store
+  - ps: Add-Content "$env:USERPROFILE\.git-credentials" "https://$($env:ACCESS_TOKEN):x-oauth-basic@github.com`n"
+  - appveyor-publish.bat
+
+artifacts:
+  - path: build\win32_x64\sapnwrfc.node

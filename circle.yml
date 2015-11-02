@@ -1,0 +1,43 @@
+machine:
+  timezone: Europe/Berlin
+
+  environment:
+    SAPNWRFC_HOME: /home/ubuntu/node-sapnwrfc/nwrfcsdk
+    NODE_VERSION: 4.2.1
+
+  node:
+    version: $NODE_VERSION
+
+  pre:
+    - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-4.6 10
+    - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.6 10
+    - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-4.9 20
+    - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.9 20
+
+dependencies:
+  pre:
+    - curl -L -u "${SAPNWRFC_CRED}" -o SAPCAR_0-80000935.EXE "https://smpdla.sap.com/00000674/280/SAPCAR_0-80000935.EXE?object_id=012002523100006088652015D&filepath=00000674%5c280%5cSAPCAR_0-80000935%2eEXE&uid=S0015138022&LOC=FRA&iesfx=.exe"
+    - curl -L -u "${SAPNWRFC_CRED}" -o NWRFC_36-20004565.SAR "https://smpdl.sap-ag.de/~swdc/012002523100013831902015D/NWRFC_36-20004565.SAR?_ACTION=DL_DIRECT"
+    - chmod +x SAPCAR_0-80000935.EXE
+    - ./SAPCAR_0-80000935.EXE -xvf NWRFC_36-20004565.SAR
+    - echo "$SAPNWRFC_HOME/lib" | sudo tee /etc/ld.so.conf.d/nwrfcsdk.conf
+    - sudo ldconfig
+    - rm -rf compiled/${NODE_VERSION%.*}/linux/x64/
+
+test:
+  override:
+    - mkdir -p compiled/${NODE_VERSION%.*}/linux/x64/
+    - cp build/Release/sapnwrfc.node compiled/${NODE_VERSION%.*}/linux/x64/sapnwrfc.node
+    - cp build/Release/sapnwrfc.node ${CIRCLE_ARTIFACTS}
+    - npm test
+
+deployment:
+  publish:
+    branch: master
+    commands:
+      - git config user.email "joachim.dorner@gmail.com"
+      - git config user.name "jdorner"
+      - git pull origin ${CIRCLE_BRANCH}
+      - git add -f compiled/${NODE_VERSION%.*}/linux/x64/sapnwrfc.node
+      - git diff --cached --exit-code >/dev/null || git commit -m "[ci skip] Add Linux binding for Node.js ${NODE_VERSION}"
+      - git push
