@@ -4,6 +4,8 @@ machine:
   environment:
     SAPNWRFC_HOME: /home/ubuntu/node-sapnwrfc/nwrfcsdk
     NODE_VERSION: 4.2.1
+    SAPCAR: SAPCAR_0-80000935.EXE
+    NWRFC: NWRFC_36-20004565.SAR
 
   node:
     version: $NODE_VERSION
@@ -15,29 +17,34 @@ machine:
     - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.9 20
 
 dependencies:
+  cache_directories:
+    - cache
   pre:
-    - curl -L -u "${SAPNWRFC_CRED}" -o SAPCAR_0-80000935.EXE "https://smpdla.sap.com/00000674/280/SAPCAR_0-80000935.EXE?object_id=012002523100006088652015D&filepath=00000674%5c280%5cSAPCAR_0-80000935%2eEXE&uid=S0015138022&LOC=FRA&iesfx=.exe"
-    - curl -L -u "${SAPNWRFC_CRED}" -o NWRFC_36-20004565.SAR "https://smpdl.sap-ag.de/~swdc/012002523100013831902015D/NWRFC_36-20004565.SAR?_ACTION=DL_DIRECT"
-    - chmod +x SAPCAR_0-80000935.EXE
-    - ./SAPCAR_0-80000935.EXE -xvf NWRFC_36-20004565.SAR
+    - mkdir -p cache
+    - if [[ ! -e cache/${SAPCAR} ]]; then curl -L -u "${SAPNWRFC_CRED}" -o cache/${SAPCAR} "https://smpdla.sap.com/00000674/280/SAPCAR_0-80000935.EXE?object_id=012002523100006088652015D&filepath=00000674%5c280%5cSAPCAR_0-80000935%2eEXE&uid=S0015138022&LOC=FRA&iesfx=.exe"; fi
+    - if [[ ! -e cache/${NWRFC} ]]; then curl -L -u "${SAPNWRFC_CRED}" -o cache/${NWRFC} "https://smpdl.sap-ag.de/~swdc/012002523100013831902015D/NWRFC_36-20004565.SAR?_ACTION=DL_DIRECT"; fi
+    - cp cache/${SAPCAR} .
+    - cp cache/${NWRFC} .
+    - chmod +x ${SAPCAR}
+    - ./${SAPCAR} -xvf ${NWRFC}
     - echo "$SAPNWRFC_HOME/lib" | sudo tee /etc/ld.so.conf.d/nwrfcsdk.conf
     - sudo ldconfig
-    - rm -rf compiled/${NODE_VERSION%.*}/linux/x64/
+    - rm -rf compiled
 
 test:
   override:
-    - mkdir -p compiled/${NODE_VERSION%.*}/linux/x64/
-    - cp build/Release/sapnwrfc.node compiled/${NODE_VERSION%.*}/linux/x64/sapnwrfc.node
-    - cp build/Release/sapnwrfc.node ${CIRCLE_ARTIFACTS}
+    - gulp build
+    - cp -R compiled ${CIRCLE_ARTIFACTS}
+    - rm -rf build
     - npm test
 
 deployment:
   publish:
-    branch: master
+    branch: ci_test
     commands:
-      - git config user.email "joachim.dorner@gmail.com"
-      - git config user.name "jdorner"
+      - git config user.email "${GIT_EMAIL}"
+      - git config user.name "${GIT_NAME}"
       - git pull origin ${CIRCLE_BRANCH}
-      - git add -f compiled/${NODE_VERSION%.*}/linux/x64/sapnwrfc.node
-      - git diff --cached --exit-code >/dev/null || git commit -m "[ci skip] Add Linux binding for Node.js ${NODE_VERSION}"
-      - git push
+      - git add -f compiled
+      - git diff --cached --exit-code >/dev/null || git commit -m "[ci skip] Add binaries for Linux"
+      - git push origin ${CIRCLE_BRANCH}

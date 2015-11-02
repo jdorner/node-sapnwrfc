@@ -26,9 +26,10 @@ var TaskBuilder = function (version) {
     var opts = {};
     opts.stdio = [0, 1, 2];
     opts.env = process.env;
+    opts.maxBuffer = 500 * 1024;
 
     gutil.log('Building addon for', gutil.colors.cyan(version));
-    exec('source ~/.nvm/nvm.sh && nvm install ' + version + ' && npm install', opts, function (err, stdout, stderr) {
+    exec('. $NVM_DIR/nvm.sh && nvm install ' + version + ' && npm install', opts, function (err, stdout, stderr) {
       console.log(stdout);
       if (err) {
         console.log(stderr);
