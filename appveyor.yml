@@ -3,12 +3,12 @@ skip_tags: true
 
 environment:
   SAPNWRFC_CRED:
-    secure: YOUR_ENCRYPTED_SAP_CREDENTIALS_FOR_DOWNLOAD
+    secure: JCQKSUZLJpoW38OrqXgkTnoIf+5fQrShmHbAj7OY5ic=
   SAPNWRFC_HOME: C:\projects\sapnwnode-rfc\nwrfcsdk
   NODE_VERSION: 4.2.1
   NODE_VERSION_SHORT: 4.2
   ACCESS_TOKEN:
-    secure: YOUR_ENCRYPTED_GITHUB_ACCESS_TOKEN
+    secure: XGl0z3kknSHe8dT+dFD6sFKSq8wEceR0k+HFyjt5d7UQCksrWylbufRfHinys8LT
 
 install:
   - git checkout %APPVEYOR_REPO_BRANCH%
@@ -20,12 +20,13 @@ install:
 
 build_script:
   - set PATH=%PATH%;%SAPNWRFC_HOME%\lib
-  - rmdir /S /Q compiled\%NODE_VERSION_SHORT%\win32\x64
+  - IF EXIST compiled\%NODE_VERSION_SHORT%\win32\x64 rmdir /S /Q compiled\%NODE_VERSION_SHORT%\win32\x64
   - npm install
   - mkdir compiled\%NODE_VERSION_SHORT%\win32\x64
-  - copy /Y build\Release\sapnwrfc.node compiled\%NODE_VERSION_SHORT%\win32\x64\sapnwrfc.node
+  - xcopy /Y build\Release\sapnwrfc.node compiled\%NODE_VERSION_SHORT%\win32\x64\
 
-test: off
+test_script:
+  - npm run test:win32
 
 deploy_script:
   - git config --global credential.helper store
@@ -33,4 +34,4 @@ deploy_script:
   - appveyor-publish.bat
 
 artifacts:
-  - path: build\win32_x64\sapnwrfc.node
+  - path: compiled\%NODE_VERSION_SHORT%\win32\x64\sapnwrfc.node
