@@ -26,6 +26,7 @@ build_script:
   - xcopy /Y build\Release\sapnwrfc.node compiled\%NODE_VERSION_SHORT%\win32\x64\
 
 test_script:
+  - set PATH=%PATH%;%SAPNWRFC_HOME%\lib
   - npm run test:win32
 
 deploy_script:
