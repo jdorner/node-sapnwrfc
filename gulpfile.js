@@ -1,5 +1,6 @@
 var gulp = require('gulp');
 var gutil = require('gulp-util');
+var mocha = require('gulp-mocha');
 var exec = require('child_process').exec;
 var runSequence = require('run-sequence');
 var path = require('path');
@@ -51,6 +52,9 @@ gulp.task('run', function (cb) {
   });
 });
 
+gulp.task('test', function (cb) {
+  return gulp.src('tests/*', { read: false }).pipe(mocha());
+});
 
 gulp.task('build', ['prepareBuild'], function (cb) {
   if (nodeVersions && nodeVersions.length) {
