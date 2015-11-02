@@ -142,7 +142,7 @@ static v8::Handle<v8::Value> RfcError(const char* message, v8::Handle<v8::Value>
 }
 
 static v8::Local<v8::Value> RfcError(const char *message, const SAP_UC *sapName) {
-    v8::Local<v8::String> name = Nan::New<v8::String>(sapName).ToLocalChecked();
+    v8::Local<v8::String> name = Nan::New<v8::String>((const uint16_t*)sapName).ToLocalChecked();
 
     return RfcError(message, name);
 }
