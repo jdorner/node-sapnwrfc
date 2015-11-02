@@ -1,5 +1,7 @@
 # SAP Netweaver RFC SDK Bindings for Node.js
 
+[![Build status](https://ci.appveyor.com/api/projects/status/oi489ecnryrt4pdg/branch/master?svg=true)](https://ci.appveyor.com/project/jdorner/node-sapnwrfc/branch/master) [![Circle CI](https://circleci.com/gh/jdorner/node-sapnwrfc/tree/master.svg?style=svg)](https://circleci.com/gh/jdorner/node-sapnwrfc/tree/master)
+
 ## Description
 
 This module provides bindings to the SAP Netweaver RFC SDK. With it, you will be able to call remote enabled function modules of a SAP system.
