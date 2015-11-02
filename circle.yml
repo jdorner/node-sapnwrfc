@@ -40,7 +40,7 @@ test:
 
 deployment:
   publish:
-    branch: ci_test
+    branch: master
     commands:
       - git config user.email "${GIT_EMAIL}"
       - git config user.name "${GIT_NAME}"
