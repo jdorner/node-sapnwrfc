@@ -1,6 +1,6 @@
 # SAP Netweaver RFC SDK Bindings for Node.js
 
-[![Build status](https://ci.appveyor.com/api/projects/status/oi489ecnryrt4pdg/branch/master?svg=true)](https://ci.appveyor.com/project/jdorner/node-sapnwrfc/branch/master) [![Circle CI](https://circleci.com/gh/jdorner/node-sapnwrfc/tree/master.svg?style=svg)](https://circleci.com/gh/jdorner/node-sapnwrfc/tree/master)
+[![Build status](https://ci.appveyor.com/api/projects/status/oi489ecnryrt4pdg/branch/master?svg=true)](https://ci.appveyor.com/project/jdorner/node-sapnwrfc/branch/master) [![Circle CI](https://circleci.com/gh/jdorner/node-sapnwrfc/tree/master.svg?style=svg)](https://circleci.com/gh/jdorner/node-sapnwrfc/tree/master) [![npm version](https://badge.fury.io/js/sapnwrfc.svg)](https://badge.fury.io/js/sapnwrfc)
 
 ## Description
 
