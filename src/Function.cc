@@ -476,7 +476,7 @@ v8::Local<v8::Value> Function::StructureToExternal(const CHND container, const R
   unsigned fieldCount;
 
   if (!value->IsObject()) {
-    return RfcError("Argument has unexpected type: ", (const uint16_t*)fieldDesc.name);
+    return RfcError("Argument has unexpected type: ", fieldDesc.name);
   }
   v8::Local<v8::Object> valueObj = value->ToObject();
 
@@ -521,7 +521,7 @@ v8::Local<v8::Value> Function::TableToExternal(const CHND container, const SAP_U
   uint32_t rowCount;
 
   if (!value->IsArray()) {
-    return RfcError("Argument has unexpected type: ", (const uint16_t*)name);
+    return RfcError("Argument has unexpected type: ", name);
   }
 
   rc = RfcGetTable(container, name, &tableHandle, &errorInfo);
@@ -552,7 +552,7 @@ v8::Local<v8::Value> Function::StringToExternal(const CHND container, const SAP_
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsString()) {
-    return RfcError("Argument has unexpected type: ", (const uint16_t*)name);
+    return RfcError("Argument has unexpected type: ", name);
   }
 
   v8::String::Value valueU16(value->ToString());
@@ -571,12 +571,12 @@ v8::Local<v8::Value> Function::XStringToExternal(const CHND container, const SAP
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsString()) {
-    return RfcError("Argument has unexpected type: ", (const uint16_t*)name);
+    return RfcError("Argument has unexpected type: ", name);
   }
 
   Nan::Utf8String val(value->ToString());
   if (*val == nullptr) {
-    return RfcError("XString conversion failed: ", (const uint16_t*)name);
+    return RfcError("XString conversion failed: ", name);
   }
 
   rc = RfcSetXString(container, name, reinterpret_cast<SAP_RAW*>(*val), val.length(), &errorInfo);
@@ -594,12 +594,12 @@ v8::Local<v8::Value> Function::NumToExternal(const CHND container, const SAP_UC 
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsString()) {
-    return RfcError("Argument has unexpected type: ", (const uint16_t*)name);
+    return RfcError("Argument has unexpected type: ", name);
   }
 
   v8::String::Value valueU16(value->ToString());
-  if (valueU16.length() < 0 || (static_cast<unsigned int>(valueU16.length()) > len)) {
-    return RfcError("Argument exceeds maximum length: ", (const uint16_t*)name);
+  if (valueU16.length() < 0 || (static_cast<unsigned int>(valueU16.length())) > len) {
+    return RfcError("Argument exceeds maximum length: ", name);
   }
 
   rc = RfcSetNum(container, name, (const RFC_NUM*)*valueU16, valueU16.length(), &errorInfo);
@@ -617,12 +617,12 @@ v8::Local<v8::Value> Function::CharToExternal(const CHND container, const SAP_UC
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsString()) {
-    return RfcError("Argument has unexpected type: ", (const uint16_t*)name);
+    return RfcError("Argument has unexpected type: ", name);
   }
 
   v8::String::Value valueU16(value->ToString());
-  if (valueU16.length() < 0 || (static_cast<unsigned int>(valueU16.length()) > len)) {
-    return RfcError("Argument exceeds maximum length: ", (const uint16_t*)name);
+  if (valueU16.length() < 0 || (static_cast<unsigned int>(valueU16.length())) > len) {
+    return RfcError("Argument exceeds maximum length: ", name);
   }
 
   rc = RfcSetChars(container, name, (const RFC_CHAR*)*valueU16, valueU16.length(), &errorInfo);
@@ -640,16 +640,16 @@ v8::Local<v8::Value> Function::ByteToExternal(const CHND container, const SAP_UC
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsString()) {
-    return RfcError("Argument has unexpected type: ", (const uint16_t*)name);
+    return RfcError("Argument has unexpected type: ", name);
   }
 
   Nan::Utf8String val(value->ToString());
   if (*val == nullptr) {
-    return RfcError("Byte conversion failed: ", (const uint16_t*)name);
+    return RfcError("Byte conversion failed: ", name);
   }
 
-  if (val.length() < 0 || (static_cast<unsigned int>(val.length()) > len)) {
-    return RfcError("Argument exceeds maximum length: ", (const uint16_t*)name);
+  if (val.length() < 0 || (static_cast<unsigned int>(val.length())) > len) {
+    return RfcError("Argument exceeds maximum length: ", name);
   }
 
   rc = RfcSetBytes(container, name, reinterpret_cast<SAP_RAW*>(*val), len, &errorInfo);
@@ -668,7 +668,7 @@ v8::Local<v8::Value> Function::IntToExternal(const CHND container, const SAP_UC 
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsInt32()) {
-    return RfcError("Argument has unexpected type: ", (const uint16_t*)name);
+    return RfcError("Argument has unexpected type: ", name);
   }
   RFC_INT rfcValue = value->ToInt32()->Value();
 
@@ -687,11 +687,11 @@ v8::Local<v8::Value> Function::Int1ToExternal(const CHND container, const SAP_UC
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsInt32()) {
-    return RfcError("Argument has unexpected type: ", (const uint16_t*)name);
+    return RfcError("Argument has unexpected type: ", name);
   }
   int32_t convertedValue = value->ToInt32()->Value();
   if ((convertedValue < INT8_MIN) || (convertedValue > INT8_MAX)) {
-    return RfcError("Argument out of range: ", (const uint16_t*)name);
+    return RfcError("Argument out of range: ", name);
   }
   RFC_INT1 rfcValue = convertedValue;
 
@@ -710,12 +710,12 @@ v8::Local<v8::Value> Function::Int2ToExternal(const CHND container, const SAP_UC
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsInt32()) {
-    return RfcError("Argument has unexpected type: ", (const uint16_t*)name);
+    return RfcError("Argument has unexpected type: ", name);
   }
 
   int32_t convertedValue = value->ToInt32()->Value();
   if ((convertedValue < INT16_MIN) || (convertedValue > INT16_MAX)) {
-    return RfcError("Argument out of range: ", (const uint16_t*)name);
+    return RfcError("Argument out of range: ", name);
   }
   RFC_INT2 rfcValue = convertedValue;
 
@@ -734,7 +734,7 @@ v8::Local<v8::Value> Function::FloatToExternal(const CHND container, const SAP_U
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsNumber()) {
-    return RfcError("Argument has unexpected type: ", (const uint16_t*)name);
+    return RfcError("Argument has unexpected type: ", name);
   }
   RFC_FLOAT rfcValue = value->ToNumber()->Value();
 
@@ -752,12 +752,12 @@ v8::Local<v8::Value> Function::DateToExternal(const CHND container, const SAP_UC
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsString()) {
-    return RfcError("Argument has unexpected type: ", (const uint16_t*)name);
+    return RfcError("Argument has unexpected type: ", name);
   }
 
   v8::Local<v8::String> str = value->ToString();
   if (str->Length() != 8) {
-    return RfcError("Invalid date format: ", (const uint16_t*)name);
+    return RfcError("Invalid date format: ", name);
   }
 
   v8::String::Value rfcValue(str);
@@ -776,12 +776,12 @@ v8::Local<v8::Value> Function::TimeToExternal(const CHND container, const SAP_UC
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsString()) {
-    return RfcError("Argument has unexpected type: ", (const uint16_t*)name);
+    return RfcError("Argument has unexpected type: ", name);
   }
 
   v8::Local<v8::String> str = value->ToString();
   if (str->Length() != 6) {
-    return RfcError("Invalid time format: ", (const uint16_t*)name);
+    return RfcError("Invalid time format: ", name);
   }
 
   v8::String::Value rfcValue(str);
@@ -801,7 +801,7 @@ v8::Local<v8::Value> Function::BCDToExternal(const CHND container, const SAP_UC 
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsNumber()) {
-    return RfcError("Argument has unexpected type: ", (const uint16_t*)name);
+    return RfcError("Argument has unexpected type: ", name);
   }
 
   v8::String::Value valueU16(value->ToString());
@@ -1175,7 +1175,7 @@ v8::Local<v8::Value> Function::DateToInternal(const CHND container, const SAP_UC
 
   assert(sizeof(RFC_CHAR) > 0); // Shouldn't occur except in case of a compiler glitch
   v8::Local<v8::String> value = Nan::New<v8::String>(
-    (const uint16_t*)(date), sizeof(RFC_DATE) / sizeof(RFC_CHAR)).ToLocalChecked();
+    (const uint16_t*)(date), (unsigned)(sizeof(RFC_DATE) / sizeof(RFC_CHAR))).ToLocalChecked();
 
   return scope.Escape(value);
 }
@@ -1193,7 +1193,7 @@ v8::Local<v8::Value> Function::TimeToInternal(const CHND container, const SAP_UC
 
   assert(sizeof(RFC_CHAR) > 0); // Shouldn't occur except in case of a compiler glitch
   v8::Local<v8::String> value = Nan::New<v8::String>(
-    (const uint16_t*)(time), sizeof(RFC_TIME) / sizeof(RFC_CHAR)).ToLocalChecked();
+    (const uint16_t*)(time), (unsigned)(sizeof(RFC_TIME) / sizeof(RFC_CHAR))).ToLocalChecked();
 
   return scope.Escape(value);
 }
