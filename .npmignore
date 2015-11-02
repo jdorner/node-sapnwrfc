@@ -1,0 +1,17 @@
+.lock*
+.node-gyp
+.vscode
+build
+build.sh
+dev_rfc.trc
+node_modules
+npm-debug.log
+nwrfcsdk
+*.sar
+*.exe
+*.smf
+
+appveyor.yml
+appveyor-publish.bat
+CMakeLists.txt
+lib
