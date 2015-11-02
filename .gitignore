@@ -3,7 +3,6 @@
 .vscode
 build
 build.sh
-clean.sh
 dev_rfc.trc
 node_modules
 npm-debug.log
