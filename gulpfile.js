@@ -44,7 +44,7 @@ var TaskBuilder = function (version) {
 gulp.task('default', ['build']);
 
 gulp.task('run', function (cb) {
-  exec('LD_LIBRARY_PATH=nwrfcsdk/lib:build/Release node examples/example2.js', function (err, stdout, stderr) {
+  exec('export LD_LIBRARY_PATH=nwrfcsdk/lib; node examples/example2.js', function (err, stdout, stderr) {
     console.log(stdout);
     console.log(stderr);
   });

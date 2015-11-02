@@ -23,12 +23,15 @@
     "bindings": ">=0.3.0",
     "nan": "^2.1.0"
   },
-  "scripts": {
-    "install": "node preinstall.js"
-  },
   "devDependencies": {
     "gulp": "^3.9.0",
     "gulp-util": "^3.0.7",
-    "run-sequence": "^1.1.4"
+    "mocha": "^2.3.3",
+    "run-sequence": "^1.1.4",
+    "should": "^7.1.1"
+  },
+  "scripts": {
+    "install": "node preinstall.js",
+    "test": "export LD_LIBRARY_PATH=nwrfcsdk/lib; mocha tests/*"
   }
 }
