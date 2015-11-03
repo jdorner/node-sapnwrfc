@@ -5,14 +5,28 @@ environment:
   SAPNWRFC_CRED:
     secure: JCQKSUZLJpoW38OrqXgkTnoIf+5fQrShmHbAj7OY5ic=
   SAPNWRFC_HOME: C:\projects\sapnwnode-rfc\nwrfcsdk
-  NODE_VERSION: 4.2.1
-  NODE_VERSION_SHORT: 4.2
   ACCESS_TOKEN:
     secure: XGl0z3kknSHe8dT+dFD6sFKSq8wEceR0k+HFyjt5d7UQCksrWylbufRfHinys8LT
 
+  matrix:
+    - nodejs_version: "4.0.0"
+      NODE_VERSION_SHORT: 4.0
+    - nodejs_version: "4.1.2"
+      NODE_VERSION_SHORT: 4.1
+    - nodejs_version: "4.2.1"
+      NODE_VERSION_SHORT: 4.2
+    - nodejs_version: "5.0.0"
+      NODE_VERSION_SHORT: 5.0
+
+platform:
+  - x64
+
+matrix:
+  fast_finish: true
+
 install:
   - git checkout %APPVEYOR_REPO_BRANCH%
-  - ps: Install-Product node $env:NODE_VERSION x64
+  - ps: Install-Product node $env:nodejs_version $env:platform
   - ps: choco install -y curl
   - curl -L -u %SAPNWRFC_CRED% -o SAPCAR_0-80000938.EXE "https://smpdla.sap.com/00000674/279/SAPCAR_0-80000938.EXE?object_id=012002523100006086842015D&filepath=00000674%%%%5c279%%%%5cSAPCAR_0-80000938%%%%2eEXE&uid=S0015138022&LOC=FRA&iesfx=.exe"
   - curl -L -u %SAPNWRFC_CRED% -o NWRFC_36-20004568.SAR "https://smpdl.sap-ag.de/~swdc/012002523100013832132015D/NWRFC_36-20004568.SAR?_ACTION=DL_DIRECT"
