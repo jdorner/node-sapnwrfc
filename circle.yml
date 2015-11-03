@@ -29,7 +29,7 @@ dependencies:
     - ./${SAPCAR} -xvf ${NWRFC}
     - echo "$SAPNWRFC_HOME/lib" | sudo tee /etc/ld.so.conf.d/nwrfcsdk.conf
     - sudo ldconfig
-    - rm -rf compiled
+    - rm -rf compiled/*/linux/x64
 
 test:
   override:
