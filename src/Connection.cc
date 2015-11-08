@@ -297,8 +297,7 @@ NAN_METHOD(Connection::SetIniPath)
 {
   RFC_RC rc = RFC_OK;
   RFC_ERROR_INFO errorInfo;
-  int isValid;
-
+  
   Connection *self = node::ObjectWrap::Unwrap<Connection>(info.This());
 
   if (info.Length() != 1) {

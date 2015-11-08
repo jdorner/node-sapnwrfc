@@ -35,15 +35,8 @@
     'conditions': [
       [ 'OS=="win"', {
         'variables': {
-          'nwrfcsdk_path': '<!(echo %NWRFCSDK_PATH%)',
+          'nwrfcsdk_path': '<(module_root_dir)/nwrfcsdk',
         },
-        'conditions': [
-          ['nwrfcsdk_path==""', {
-            'variables': {
-              'nwrfcsdk_path': '<(module_root_dir)/nwrfcsdk',
-            }
-          }]
-        ],
         'defines': [
           'PLATFORM="win32"',
           'WIN32',

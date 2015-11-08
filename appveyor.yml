@@ -1,5 +1,4 @@
 version: "{build}"
-skip_tags: true
 
 environment:
   SAPNWRFC_CRED:
@@ -47,7 +46,7 @@ test_script:
 deploy_script:
   - git config --global credential.helper store
   - ps: Add-Content "$env:USERPROFILE\.git-credentials" "https://$($env:ACCESS_TOKEN):x-oauth-basic@github.com`n"
-  - if %APPVEYOR_REPO_TAG% = "true" ( appveyor-publish.bat )
+  - if %APPVEYOR_REPO_TAG% == "true" ( appveyor-publish.bat )
 
 artifacts:
   - path: compiled\%NODE_VERSION_SHORT%\win32\x64\sapnwrfc.node
