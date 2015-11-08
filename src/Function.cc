@@ -51,7 +51,7 @@ NAN_MODULE_INIT(Function::Init)
 
 v8::Local<v8::Value> Function::NewInstance(Connection &connection, const Nan::NAN_METHOD_ARGS_TYPE args)
 {
-  Nan::HandleScope scope;
+  Nan::EscapableHandleScope scope;
   unsigned int parmCount;
   RFC_RC rc = RFC_OK;
   RFC_ERROR_INFO errorInfo;
@@ -73,12 +73,12 @@ v8::Local<v8::Value> Function::NewInstance(Connection &connection, const Nan::NA
 #endif
 
   if (self->functionDescHandle == nullptr) {
-    return RfcError(errorInfo);
+    return scope.Escape(RfcError(errorInfo));
   }
 
   rc = RfcGetParameterCount(self->functionDescHandle, &parmCount, &errorInfo);
   if (rc != RFC_OK) {
-    return RfcError(errorInfo);
+    return scope.Escape(RfcError(errorInfo));
   }
 
   // Dynamically add parameters to JS object
@@ -87,18 +87,18 @@ v8::Local<v8::Value> Function::NewInstance(Connection &connection, const Nan::NA
 
     rc = RfcGetParameterDescByIndex(self->functionDescHandle, i, &parmDesc, &errorInfo);
     if (rc != RFC_OK) {
-      return RfcError(errorInfo);
+      return scope.Escape(RfcError(errorInfo));
     }
     func->Set(Nan::New((const uint16_t*)(parmDesc.name)).ToLocalChecked(), Nan::Null());
   }
 
-  return func;
+  return scope.Escape(func);
 }
 
 NAN_METHOD(Function::New)
 {
   if (!info.IsConstructCall()) {
-    THROW_V8_EXCEPTION("Invalid call format. Please use the 'new' operator.");
+    Nan::ThrowError("Invalid call format. Please use the 'new' operator.");
     return;
   }
 
@@ -119,15 +119,15 @@ NAN_METHOD(Function::Invoke)
   assert(self != nullptr);
 
   if (info.Length() < 1) {
-    THROW_V8_EXCEPTION("Function expects 2 arguments");
+    Nan::ThrowError("Function expects 2 arguments");
     return;
   }
   if (!info[0]->IsObject()) {
-    THROW_V8_EXCEPTION("Argument 1 must be an object");
+    Nan::ThrowError("Argument 1 must be an object");
     return;
   }
   if (!info[1]->IsFunction()) {
-    THROW_V8_EXCEPTION("Argument 2 must be a function");
+    Nan::ThrowError("Argument 2 must be a function");
     return;
   }
 
@@ -306,7 +306,7 @@ void Function::EIO_AfterInvoke(uv_work_t *req)
   if (baton->errorInfo.code != RFC_OK) {
     argv[0] = RfcError(baton->errorInfo);
   }
-  
+
   v8::Local<v8::Value> result = baton->function->DoReceive(baton->functionHandle);
   if (IsException(result)) {
     argv[0] = result;
@@ -324,7 +324,6 @@ void Function::EIO_AfterInvoke(uv_work_t *req)
   assert(!baton->cbInvoke.IsEmpty());
   baton->cbInvoke->Call(Nan::GetCurrentContext()->Global(), 2, argv);
 
-  baton->function->Unref();
   delete baton;
 
   if (try_catch.HasCaught()) {
@@ -344,7 +343,7 @@ v8::Local<v8::Value> Function::DoReceive(const CHND container)
   // Get resulting values for exporting/changing/table parameters
   rc = RfcGetParameterCount(this->functionDescHandle, &parmCount, &errorInfo);
   if (rc != RFC_OK) {
-    return RfcError(errorInfo);
+    return scope.Escape(RfcError(errorInfo));
   }
 
   for (unsigned int i = 0; i < parmCount; i++) {
@@ -353,7 +352,7 @@ v8::Local<v8::Value> Function::DoReceive(const CHND container)
 
     rc = RfcGetParameterDescByIndex(this->functionDescHandle, i, &parmDesc, &errorInfo);
     if (rc != RFC_OK) {
-      return RfcError(errorInfo);
+      return scope.Escape(RfcError(errorInfo));
     }
 
     switch (parmDesc.direction) {
@@ -364,7 +363,7 @@ v8::Local<v8::Value> Function::DoReceive(const CHND container)
       case RFC_EXPORT:
         parmValue = this->GetValue(container, parmDesc.type, parmDesc.name, parmDesc.nucLength);
         if (IsException(parmValue)) {
-          return parmValue;
+          return scope.Escape(parmValue);
         }
         result->Set(Nan::New<v8::String>((const uint16_t*)parmDesc.name).ToLocalChecked(), parmValue);
         break;
@@ -428,7 +427,7 @@ v8::Local<v8::Value> Function::SetValue(const CHND container, RFCTYPE type, cons
       break;
     default:
       // Type not implemented
-      return RfcError("RFC type not implemented: ", Nan::New<v8::Uint32>(type)->ToString());
+      return scope.Escape(RfcError("RFC type not implemented: ", Nan::New<v8::Uint32>(type)->ToString()));
       break;
   }
 
@@ -448,7 +447,7 @@ v8::Local<v8::Value> Function::StructureToExternal(const CHND container, const S
 
   rc = RfcGetStructure(container, name, &strucHandle, &errorInfo);
   if (rc != RFC_OK) {
-    return RfcError(errorInfo);
+    return ESCAPE_RFC_ERROR(errorInfo);
   }
 
   return scope.Escape(this->StructureToExternal(container, strucHandle, value));
@@ -464,25 +463,25 @@ v8::Local<v8::Value> Function::StructureToExternal(const CHND container, const R
   unsigned fieldCount;
 
   if (!value->IsObject()) {
-    return RfcError("Argument has unexpected type: ", fieldDesc.name);
+    return ESCAPE_RFC_ERROR("Argument has unexpected type: ", fieldDesc.name);
   }
   v8::Local<v8::Object> valueObj = value->ToObject();
 
   typeHandle = RfcDescribeType(struc, &errorInfo);
   assert(typeHandle);
   if (typeHandle == nullptr) {
-    return RfcError(errorInfo);
+    return ESCAPE_RFC_ERROR(errorInfo);
   }
 
   rc = RfcGetFieldCount(typeHandle, &fieldCount, &errorInfo);
   if (rc != RFC_OK) {
-    return RfcError(errorInfo);
+    return ESCAPE_RFC_ERROR(errorInfo);
   }
 
   for (unsigned int i = 0; i < fieldCount; i++) {
     rc = RfcGetFieldDescByIndex(typeHandle, i, &fieldDesc, &errorInfo);
     if (rc != RFC_OK) {
-      return RfcError(errorInfo);
+      return ESCAPE_RFC_ERROR(errorInfo);
     }
 
     v8::Local<v8::String> fieldName = Nan::New<v8::String>((const uint16_t*)(fieldDesc.name)).ToLocalChecked();
@@ -509,12 +508,12 @@ v8::Local<v8::Value> Function::TableToExternal(const CHND container, const SAP_U
   uint32_t rowCount;
 
   if (!value->IsArray()) {
-    return RfcError("Argument has unexpected type: ", name);
+    return ESCAPE_RFC_ERROR("Argument has unexpected type: ", name);
   }
 
   rc = RfcGetTable(container, name, &tableHandle, &errorInfo);
   if (rc != RFC_OK) {
-    return RfcError(errorInfo);
+    return ESCAPE_RFC_ERROR(errorInfo);
   }
 
   v8::Local<v8::Array> source = v8::Local<v8::Array>::Cast(value);
@@ -540,13 +539,13 @@ v8::Local<v8::Value> Function::StringToExternal(const CHND container, const SAP_
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsString()) {
-    return RfcError("Argument has unexpected type: ", name);
+    return ESCAPE_RFC_ERROR("Argument has unexpected type: ", name);
   }
 
   v8::String::Value valueU16(value->ToString());
   rc = RfcSetString(container, name, (const SAP_UC*)*valueU16, valueU16.length(), &errorInfo);
   if (rc != RFC_OK) {
-    return RfcError(errorInfo);
+    return ESCAPE_RFC_ERROR(errorInfo);
   }
 
   return scope.Escape(Nan::Null());
@@ -559,7 +558,7 @@ v8::Local<v8::Value> Function::XStringToExternal(const CHND container, const SAP
   RFC_ERROR_INFO errorInfo;
 
   if (!node::Buffer::HasInstance(value)) {
-    return RfcError("Argument has unexpected type: ", name);
+    return ESCAPE_RFC_ERROR("Argument has unexpected type: ", name);
   }
 
   unsigned int bufferLength = node::Buffer::Length(value);
@@ -567,7 +566,7 @@ v8::Local<v8::Value> Function::XStringToExternal(const CHND container, const SAP
 
   rc = RfcSetXString(container, name, bufferData, bufferLength, &errorInfo);
   if (rc != RFC_OK) {
-    return RfcError(errorInfo);
+    return ESCAPE_RFC_ERROR(errorInfo);
   }
 
   return scope.Escape(Nan::Null());
@@ -580,17 +579,17 @@ v8::Local<v8::Value> Function::NumToExternal(const CHND container, const SAP_UC 
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsString()) {
-    return RfcError("Argument has unexpected type: ", name);
+    return ESCAPE_RFC_ERROR("Argument has unexpected type: ", name);
   }
 
   v8::String::Value valueU16(value->ToString());
   if (valueU16.length() < 0 || (static_cast<unsigned int>(valueU16.length())) > len) {
-    return RfcError("Argument exceeds maximum length: ", name);
+    return ESCAPE_RFC_ERROR("Argument exceeds maximum length: ", name);
   }
 
   rc = RfcSetNum(container, name, (const RFC_NUM*)*valueU16, valueU16.length(), &errorInfo);
   if (rc != RFC_OK) {
-    return RfcError(errorInfo);
+    return ESCAPE_RFC_ERROR(errorInfo);
   }
 
   return scope.Escape(Nan::Null());
@@ -603,17 +602,17 @@ v8::Local<v8::Value> Function::CharToExternal(const CHND container, const SAP_UC
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsString()) {
-    return RfcError("Argument has unexpected type: ", name);
+    return ESCAPE_RFC_ERROR("Argument has unexpected type: ", name);
   }
 
   v8::String::Value valueU16(value->ToString());
   if (valueU16.length() < 0 || (static_cast<unsigned int>(valueU16.length())) > len) {
-    return RfcError("Argument exceeds maximum length: ", name);
+    return ESCAPE_RFC_ERROR("Argument exceeds maximum length: ", name);
   }
 
   rc = RfcSetChars(container, name, (const RFC_CHAR*)*valueU16, valueU16.length(), &errorInfo);
   if (rc != RFC_OK) {
-    return RfcError(errorInfo);
+    return ESCAPE_RFC_ERROR(errorInfo);
   }
 
   return scope.Escape(Nan::Null());
@@ -626,19 +625,19 @@ v8::Local<v8::Value> Function::ByteToExternal(const CHND container, const SAP_UC
   RFC_ERROR_INFO errorInfo;
 
   if (!node::Buffer::HasInstance(value)) {
-    return RfcError("Argument has unexpected type: ", name);
+    return ESCAPE_RFC_ERROR("Argument has unexpected type: ", name);
   }
 
   unsigned int bufferLength = node::Buffer::Length(value);
   if (bufferLength > len) {
-    return RfcError("Argument exceeds maximum length: ", name);
+    return ESCAPE_RFC_ERROR("Argument exceeds maximum length: ", name);
   }
 
   SAP_RAW* bufferData = reinterpret_cast<SAP_RAW*>(node::Buffer::Data(value));
 
   rc = RfcSetBytes(container, name, bufferData, len, &errorInfo);
   if (rc != RFC_OK) {
-    return RfcError(errorInfo);
+    return ESCAPE_RFC_ERROR(errorInfo);
   }
 
   return scope.Escape(Nan::Null());
@@ -652,13 +651,13 @@ v8::Local<v8::Value> Function::IntToExternal(const CHND container, const SAP_UC 
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsInt32()) {
-    return RfcError("Argument has unexpected type: ", name);
+    return ESCAPE_RFC_ERROR("Argument has unexpected type: ", name);
   }
   RFC_INT rfcValue = value->ToInt32()->Value();
 
   rc = RfcSetInt(container, name, rfcValue, &errorInfo);
   if (rc != RFC_OK) {
-    return RfcError(errorInfo);
+    return ESCAPE_RFC_ERROR(errorInfo);
   }
 
   return scope.Escape(Nan::Null());
@@ -671,17 +670,17 @@ v8::Local<v8::Value> Function::Int1ToExternal(const CHND container, const SAP_UC
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsInt32()) {
-    return RfcError("Argument has unexpected type: ", name);
+    return ESCAPE_RFC_ERROR("Argument has unexpected type: ", name);
   }
   int32_t convertedValue = value->ToInt32()->Value();
   if ((convertedValue < INT8_MIN) || (convertedValue > INT8_MAX)) {
-    return RfcError("Argument out of range: ", name);
+    return ESCAPE_RFC_ERROR("Argument out of range: ", name);
   }
   RFC_INT1 rfcValue = convertedValue;
 
   rc = RfcSetInt1(container, name, rfcValue, &errorInfo);
   if (rc != RFC_OK) {
-    return RfcError(errorInfo);
+    return ESCAPE_RFC_ERROR(errorInfo);
   }
 
   return scope.Escape(Nan::Null());
@@ -694,18 +693,18 @@ v8::Local<v8::Value> Function::Int2ToExternal(const CHND container, const SAP_UC
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsInt32()) {
-    return RfcError("Argument has unexpected type: ", name);
+    return ESCAPE_RFC_ERROR("Argument has unexpected type: ", name);
   }
 
   int32_t convertedValue = value->ToInt32()->Value();
   if ((convertedValue < INT16_MIN) || (convertedValue > INT16_MAX)) {
-    return RfcError("Argument out of range: ", name);
+    return ESCAPE_RFC_ERROR("Argument out of range: ", name);
   }
   RFC_INT2 rfcValue = convertedValue;
 
   rc = RfcSetInt2(container, name, rfcValue, &errorInfo);
   if (rc != RFC_OK) {
-    return RfcError(errorInfo);
+    return ESCAPE_RFC_ERROR(errorInfo);
   }
 
   return scope.Escape(Nan::Null());
@@ -718,13 +717,13 @@ v8::Local<v8::Value> Function::FloatToExternal(const CHND container, const SAP_U
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsNumber()) {
-    return RfcError("Argument has unexpected type: ", name);
+    return ESCAPE_RFC_ERROR("Argument has unexpected type: ", name);
   }
   RFC_FLOAT rfcValue = value->ToNumber()->Value();
 
   rc = RfcSetFloat(container, name, rfcValue, &errorInfo);
   if (rc != RFC_OK) {
-    return RfcError(errorInfo);
+    return ESCAPE_RFC_ERROR(errorInfo);
   }
 
   return scope.Escape(Nan::Null());
@@ -736,19 +735,19 @@ v8::Local<v8::Value> Function::DateToExternal(const CHND container, const SAP_UC
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsString()) {
-    return RfcError("Argument has unexpected type: ", name);
+    return ESCAPE_RFC_ERROR("Argument has unexpected type: ", name);
   }
 
   v8::Local<v8::String> str = value->ToString();
   if (str->Length() != 8) {
-    return RfcError("Invalid date format: ", name);
+    return ESCAPE_RFC_ERROR("Invalid date format: ", name);
   }
 
   v8::String::Value rfcValue(str);
   assert(*rfcValue);
   RFC_RC rc = RfcSetDate(container, name, (const RFC_CHAR*)*rfcValue, &errorInfo);
   if (rc != RFC_OK) {
-    return RfcError(errorInfo);
+    return ESCAPE_RFC_ERROR(errorInfo);
   }
 
   return scope.Escape(Nan::Null());
@@ -760,19 +759,19 @@ v8::Local<v8::Value> Function::TimeToExternal(const CHND container, const SAP_UC
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsString()) {
-    return RfcError("Argument has unexpected type: ", name);
+    return ESCAPE_RFC_ERROR("Argument has unexpected type: ", name);
   }
 
   v8::Local<v8::String> str = value->ToString();
   if (str->Length() != 6) {
-    return RfcError("Invalid time format: ", name);
+    return ESCAPE_RFC_ERROR("Invalid time format: ", name);
   }
 
   v8::String::Value rfcValue(str);
   assert(*rfcValue);
   RFC_RC rc = RfcSetTime(container, name, (const RFC_CHAR*)*rfcValue, &errorInfo);
   if (rc != RFC_OK) {
-    return RfcError(errorInfo);
+    return ESCAPE_RFC_ERROR(errorInfo);
   }
 
   return scope.Escape(Nan::Null());
@@ -785,14 +784,14 @@ v8::Local<v8::Value> Function::BCDToExternal(const CHND container, const SAP_UC 
   RFC_ERROR_INFO errorInfo;
 
   if (!value->IsNumber()) {
-    return RfcError("Argument has unexpected type: ", name);
+    return ESCAPE_RFC_ERROR("Argument has unexpected type: ", name);
   }
 
   v8::String::Value valueU16(value->ToString());
 
   rc = RfcSetString(container, name, (const SAP_UC*)*valueU16, valueU16.length(), &errorInfo);
   if (rc != RFC_OK) {
-    return RfcError(errorInfo);
+    return ESCAPE_RFC_ERROR(errorInfo);
   }
 
   return scope.Escape(Nan::Null());
@@ -848,7 +847,7 @@ v8::Local<v8::Value> Function::GetValue(const CHND container, RFCTYPE type, cons
       break;
     default:
       // Type not implemented
-      return RfcError("RFC type not implemented: ", Nan::New<v8::Uint32>(type)->ToString());
+      return ESCAPE_RFC_ERROR("RFC type not implemented: ", Nan::New<v8::Uint32>(type)->ToString());
       break;
   }
 
@@ -864,7 +863,7 @@ v8::Local<v8::Value> Function::StructureToInternal(const CHND container, const S
 
   rc = RfcGetStructure(container, name, &strucHandle, &errorInfo);
   if (rc != RFC_OK) {
-    return RfcError(errorInfo);
+    return ESCAPE_RFC_ERROR(errorInfo);
   }
 
   return scope.Escape(this->StructureToInternal(container, strucHandle));
@@ -882,12 +881,12 @@ v8::Local<v8::Value> Function::StructureToInternal(const CHND container, const R
   typeHandle = RfcDescribeType(struc, &errorInfo);
   assert(typeHandle);
   if (typeHandle == nullptr) {
-    return RfcError(errorInfo);
+    return ESCAPE_RFC_ERROR(errorInfo);
   }
 
   rc = RfcGetFieldCount(typeHandle, &fieldCount, &errorInfo);
   if (rc != RFC_OK) {
-    return RfcError(errorInfo);
+    return ESCAPE_RFC_ERROR(errorInfo);
   }
 
   v8::Local<v8::Object> obj = Nan::New<v8::Object>();
@@ -895,7 +894,7 @@ v8::Local<v8::Value> Function::StructureToInternal(const CHND container, const R
   for (unsigned int i = 0; i < fieldCount; i++) {
     rc = RfcGetFieldDescByIndex(typeHandle, i, &fieldDesc, &errorInfo);
     if (rc != RFC_OK) {
-      return RfcError(errorInfo);
+      return ESCAPE_RFC_ERROR(errorInfo);
     }
 
     v8::Local<v8::Value> value = this->GetValue(struc, fieldDesc.type, fieldDesc.name, fieldDesc.nucLength);
@@ -920,12 +919,12 @@ v8::Local<v8::Value> Function::TableToInternal(const CHND container, const SAP_U
 
   rc = RfcGetTable(container, name, &tableHandle, &errorInfo);
   if (rc != RFC_OK) {
-    return RfcError(errorInfo);
+    return ESCAPE_RFC_ERROR(errorInfo);
   }
 
   rc = RfcGetRowCount(tableHandle, &rowCount, nullptr);
   if (rc != RFC_OK) {
-    return RfcError(errorInfo);
+    return ESCAPE_RFC_ERROR(errorInfo);
   }
 
   // Create array holding table lines
@@ -955,7 +954,7 @@ v8::Local<v8::Value> Function::StringToInternal(const CHND container, const SAP_
 
   rc = RfcGetStringLength(container, name, &strLen, &errorInfo);
   if (rc != RFC_OK) {
-    return RfcError(errorInfo);
+    return ESCAPE_RFC_ERROR(errorInfo);
   }
 
   if (strLen == 0) {
@@ -969,7 +968,7 @@ v8::Local<v8::Value> Function::StringToInternal(const CHND container, const SAP_
   rc = RfcGetString(container, name, buffer, strLen + 1, &retStrLen, &errorInfo);
   if (rc != RFC_OK) {
     free(buffer);
-    return RfcError(errorInfo);
+    return ESCAPE_RFC_ERROR(errorInfo);
   }
 
   v8::Local<v8::String> value = Nan::New<v8::String>((const uint16_t*)(buffer)).ToLocalChecked();
@@ -988,7 +987,7 @@ v8::Local<v8::Value> Function::XStringToInternal(const CHND container, const SAP
 
   rc = RfcGetStringLength(container, name, &strLen, &errorInfo);
   if (rc != RFC_OK) {
-    return RfcError(errorInfo);
+    return ESCAPE_RFC_ERROR(errorInfo);
   }
 
   if (strLen == 0) {
@@ -1002,7 +1001,7 @@ v8::Local<v8::Value> Function::XStringToInternal(const CHND container, const SAP
   rc = RfcGetXString(container, name, buffer, strLen, &retStrLen, &errorInfo);
   if (rc != RFC_OK) {
     free(buffer);
-    return RfcError(errorInfo);
+    return ESCAPE_RFC_ERROR(errorInfo);
   }
 
   v8::Local<v8::Value> value = Nan::NewBuffer(reinterpret_cast<char*>(buffer), strLen).ToLocalChecked();
@@ -1022,7 +1021,7 @@ v8::Local<v8::Value> Function::NumToInternal(const CHND container, const SAP_UC 
   RFC_RC rc = RfcGetNum(container, name, buffer, len, &errorInfo);
   if (rc != RFC_OK) {
     free(buffer);
-    return RfcError(errorInfo);
+    return ESCAPE_RFC_ERROR(errorInfo);
   }
 
   v8::Local<v8::String> value = Nan::New<v8::String>((const uint16_t*)(buffer)).ToLocalChecked();
@@ -1044,7 +1043,7 @@ v8::Local<v8::Value> Function::CharToInternal(const CHND container, const SAP_UC
   RFC_RC rc = RfcGetChars(container, name, buffer, len, &errorInfo);
   if (rc != RFC_OK) {
     free(buffer);
-    return RfcError(errorInfo);
+    return ESCAPE_RFC_ERROR(errorInfo);
   }
 
   v8::Local<v8::String> value = Nan::New<v8::String>((const uint16_t*)(buffer)).ToLocalChecked();
@@ -1066,7 +1065,7 @@ v8::Local<v8::Value> Function::ByteToInternal(const CHND container, const SAP_UC
   RFC_RC rc = RfcGetBytes(container, name, buffer, len, &errorInfo);
   if (rc != RFC_OK) {
     free(buffer);
-    return RfcError(errorInfo);
+    return ESCAPE_RFC_ERROR(errorInfo);
   }
 
   v8::Local<v8::Value> value = Nan::NewBuffer(reinterpret_cast<char*>(buffer), len).ToLocalChecked();
@@ -1082,7 +1081,7 @@ v8::Local<v8::Value> Function::IntToInternal(const CHND container, const SAP_UC 
 
   RFC_RC rc = RfcGetInt(container, name, &value, &errorInfo);
   if (rc != RFC_OK) {
-    return RfcError(errorInfo);
+    return ESCAPE_RFC_ERROR(errorInfo);
   }
 
   return scope.Escape(Nan::New<v8::Integer>(value));
@@ -1096,7 +1095,7 @@ v8::Local<v8::Value> Function::Int1ToInternal(const CHND container, const SAP_UC
 
   RFC_RC rc = RfcGetInt1(container, name, &value, &errorInfo);
   if (rc != RFC_OK) {
-    return RfcError(errorInfo);
+    return ESCAPE_RFC_ERROR(errorInfo);
   }
 
   return scope.Escape(Nan::New<v8::Integer>(value));
@@ -1110,7 +1109,7 @@ v8::Local<v8::Value> Function::Int2ToInternal(const CHND container, const SAP_UC
 
   RFC_RC rc = RfcGetInt2(container, name, &value, &errorInfo);
   if (rc != RFC_OK) {
-    return RfcError(errorInfo);
+    return ESCAPE_RFC_ERROR(errorInfo);
   }
 
   return scope.Escape(Nan::New<v8::Integer>(value));
@@ -1124,7 +1123,7 @@ v8::Local<v8::Value> Function::FloatToInternal(const CHND container, const SAP_U
 
   RFC_RC rc = RfcGetFloat(container, name, &value, &errorInfo);
   if (rc != RFC_OK) {
-    return RfcError(errorInfo);
+    return ESCAPE_RFC_ERROR(errorInfo);
   }
 
   return scope.Escape(Nan::New<v8::Number>(value));
@@ -1138,7 +1137,7 @@ v8::Local<v8::Value> Function::DateToInternal(const CHND container, const SAP_UC
 
   RFC_RC rc = RfcGetDate(container, name, date, &errorInfo);
   if (rc != RFC_OK) {
-    return RfcError(errorInfo);
+    return ESCAPE_RFC_ERROR(errorInfo);
   }
 
   assert(sizeof(RFC_CHAR) > 0); // Shouldn't occur except in case of a compiler glitch
@@ -1156,7 +1155,7 @@ v8::Local<v8::Value> Function::TimeToInternal(const CHND container, const SAP_UC
 
   RFC_RC rc = RfcGetTime(container, name, time, &errorInfo);
   if (rc != RFC_OK) {
-    return RfcError(errorInfo);
+    return ESCAPE_RFC_ERROR(errorInfo);
   }
 
   assert(sizeof(RFC_CHAR) > 0); // Shouldn't occur except in case of a compiler glitch
@@ -1187,7 +1186,8 @@ v8::Local<v8::Value> Function::BCDToInternal(const CHND container, const SAP_UC 
       free(buffer);
       strLen = retStrLen;
     } else if (rc != RFC_OK) {
-      return RfcError(errorInfo);
+      free(buffer);
+      return ESCAPE_RFC_ERROR(errorInfo);
     }
   } while (rc == RFC_BUFFER_TOO_SMALL);
 
@@ -1244,6 +1244,7 @@ bool Function::addMetaData(const CHND container, v8::Local<v8::Object> &parent,
                            unsigned int length, RFC_DIRECTION direction,
                            RFC_ERROR_INFO *errorInfo, RFC_PARAMETER_TEXT paramText)
 {
+  Nan::EscapableHandleScope scope;
   RFC_RC rc = RFC_OK;
 
   v8::Local<v8::Object> actualType = Nan::New<v8::Object>();
@@ -1280,7 +1281,7 @@ bool Function::addMetaData(const CHND container, v8::Local<v8::Object> &parent,
     RFC_TYPE_DESC_HANDLE typeHandle;
     RFC_FIELD_DESC fieldDesc;
     unsigned fieldCount;
-	RFC_ABAP_NAME typeName;
+    RFC_ABAP_NAME typeName;
 
     rc = RfcGetStructure(container, name, &strucHandle, errorInfo);
     if (rc != RFC_OK) {
@@ -1293,21 +1294,21 @@ bool Function::addMetaData(const CHND container, v8::Local<v8::Object> &parent,
       return false;
     }
 
-	rc = RfcGetTypeName(typeHandle, typeName, errorInfo);
-	if (rc != RFC_OK) {
+  rc = RfcGetTypeName(typeHandle, typeName, errorInfo);
+  if (rc != RFC_OK) {
       return false;
-    }
+  }
 
-	actualType->Set(
+  actualType->Set(
         Nan::New<v8::String>("sapTypeName").ToLocalChecked(),
         Nan::New<v8::String>((const uint16_t*)typeName).ToLocalChecked());
 
-    rc = RfcGetFieldCount(typeHandle, &fieldCount, errorInfo);
-    if (rc != RFC_OK) {
-      return false;
-    }
+  rc = RfcGetFieldCount(typeHandle, &fieldCount, errorInfo);
+  if (rc != RFC_OK) {
+    return false;
+  }
 
-	v8::Local<v8::Object> properties = Nan::New<v8::Object>();
+  v8::Local<v8::Object> properties = Nan::New<v8::Object>();
     actualType->Set(Nan::New<v8::String>("properties").ToLocalChecked(), properties);
 
     for (unsigned int i = 0; i < fieldCount; i++) {
@@ -1327,7 +1328,7 @@ bool Function::addMetaData(const CHND container, v8::Local<v8::Object> &parent,
     RFC_TYPE_DESC_HANDLE typeHandle;
     RFC_FIELD_DESC fieldDesc;
     unsigned fieldCount;
-	RFC_ABAP_NAME typeName;
+    RFC_ABAP_NAME typeName;
 
     rc = RfcGetTable(container, name, &tableHandle, errorInfo);
     if (rc != RFC_OK) {
@@ -1340,25 +1341,25 @@ bool Function::addMetaData(const CHND container, v8::Local<v8::Object> &parent,
       return false;
     }
 
-	rc = RfcGetTypeName(typeHandle, typeName, errorInfo);
-	if (rc != RFC_OK) {
-      return false;
-    }
+  rc = RfcGetTypeName(typeHandle, typeName, errorInfo);
+  if (rc != RFC_OK) {
+    return false;
+  }
 
-	typeHandle = RfcDescribeType(tableHandle, errorInfo);
-    assert(typeHandle);
-    if (typeHandle == nullptr) {
-      return false;
-    }
+  typeHandle = RfcDescribeType(tableHandle, errorInfo);
+  assert(typeHandle);
+  if (typeHandle == nullptr) {
+    return false;
+  }
 
-    rc = RfcGetFieldCount(typeHandle, &fieldCount, errorInfo);
-    if (rc != RFC_OK) {
-      return false;
-    }
+  rc = RfcGetFieldCount(typeHandle, &fieldCount, errorInfo);
+  if (rc != RFC_OK) {
+    return false;
+  }
 
-    v8::Local<v8::Object> items = Nan::New<v8::Object>();
-    actualType->Set(Nan::New<v8::String>("items").ToLocalChecked(), items);
-	items->Set(
+  v8::Local<v8::Object> items = Nan::New<v8::Object>();
+  actualType->Set(Nan::New<v8::String>("items").ToLocalChecked(), items);
+  items->Set(
       Nan::New<v8::String>("sapTypeName").ToLocalChecked(),
       Nan::New<v8::String>((const uint16_t*)typeName).ToLocalChecked());
 

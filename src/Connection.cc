@@ -53,7 +53,7 @@ Connection::~Connection()
 NAN_METHOD(Connection::New)
 {
   if (!info.IsConstructCall()) {
-    THROW_V8_EXCEPTION("Invalid call format. Please use the 'new' operator.");
+    Nan::ThrowError("Invalid call format. Please use the 'new' operator.");
     return;
   }
 
@@ -103,15 +103,15 @@ NAN_METHOD(Connection::Open)
   Connection *self = node::ObjectWrap::Unwrap<Connection>(info.This());
 
   if (info.Length() < 2) {
-    THROW_V8_EXCEPTION("Function expects 2 arguments");
+    Nan::ThrowError("Function expects 2 arguments");
     return;
   }
   if (!info[0]->IsObject()) {
-    THROW_V8_EXCEPTION("Argument 1 must be an object");
+    Nan::ThrowError("Argument 1 must be an object");
     return;
   }
   if (!info[1]->IsFunction()) {
-    THROW_V8_EXCEPTION("Argument 2 must be a function");
+    Nan::ThrowError("Argument 2 must be a function");
     return;
   }
 
@@ -245,7 +245,7 @@ NAN_METHOD(Connection::Ping)
   RFC_ERROR_INFO errorInfo;
 
   if (info.Length() > 0) {
-    THROW_V8_EXCEPTION("No arguments expected");
+    Nan::ThrowError("No arguments expected");
     return;
   }
 
@@ -270,17 +270,17 @@ NAN_METHOD(Connection::Lookup)
   Connection *self = node::ObjectWrap::Unwrap<Connection>(info.This());
 
   if (info.Length() != 1) {
-    THROW_V8_EXCEPTION("Function expects 1 argument");
+    Nan::ThrowError("Function expects 1 argument");
     return;
   }
   if (!info[0]->IsString()) {
-    THROW_V8_EXCEPTION("Argument 1 must be function module name");
+    Nan::ThrowError("Argument 1 must be function module name");
     return;
   }
 
   rc = RfcIsConnectionHandleValid(self->connectionHandle, &isValid, &errorInfo);
   if (!isValid) {
-    THROW_V8_EXCEPTION(RfcError(errorInfo));
+    Nan::ThrowError(RfcError(errorInfo));
     return;
   }
 

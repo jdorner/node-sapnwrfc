@@ -103,6 +103,10 @@ class Function : public node::ObjectWrap
         this->functionHandle = nullptr;
       }
 
+      if (this->function) {
+        this->function->Unref();
+      }
+
       delete this->cbInvoke;
       this->cbInvoke = nullptr;
     };

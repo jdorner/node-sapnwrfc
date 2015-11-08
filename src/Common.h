@@ -34,7 +34,7 @@ SOFTWARE.
 #define nullptr NULL
 #endif
 
-#define THROW_V8_EXCEPTION(msg) Nan::ThrowError(msg);
+#define ESCAPE_RFC_ERROR(...) scope.Escape(RfcError(__VA_ARGS__));
 #define RETURN_RFC_ERROR(...) info.GetReturnValue().Set(RfcError(__VA_ARGS__)); return;
 
 typedef DATA_CONTAINER_HANDLE CHND;
@@ -135,19 +135,22 @@ static v8::Local<v8::Value> RfcError(const RFC_ERROR_INFO &info)
 
 static v8::Local<v8::Value> RfcError(const char* message, v8::Local<v8::Value> value)
 {
+  Nan::EscapableHandleScope scope;
+
   v8::Local<v8::String> leftSide = Nan::New<v8::String>(message).ToLocalChecked();
   v8::Local<v8::String> exceptionString = v8::String::Concat(leftSide, value->ToString());
 
-  return Nan::Error(exceptionString);
+  return scope.Escape(Nan::Error(exceptionString));
 }
 
 static v8::Local<v8::Value> RfcError(const char *message, const SAP_UC *sapName) {
-    v8::Local<v8::String> name = Nan::New<v8::String>((const uint16_t*)sapName).ToLocalChecked();
+  Nan::EscapableHandleScope scope;
+  v8::Local<v8::String> name = Nan::New<v8::String>((const uint16_t*)sapName).ToLocalChecked();
 
-    return RfcError(message, name);
+  return scope.Escape(RfcError(message, name));
 }
 
-static bool IsException(v8::Local<v8::Value> value)
+static bool IsException(const v8::Local<v8::Value> &value)
 {
   return value->IsNativeError();
 }
