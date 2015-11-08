@@ -3,8 +3,7 @@
     'module_name': 'sapnwrfc',
     'library': 'shared_library',
     'target_arch': 'ia32',
-    'output_directory': 'Release',
-    'nwrfcsdk_path': '<(module_root_dir)/nwrfcsdk'
+    'output_directory': 'Release'
   },
 
   'targets': [{
@@ -35,6 +34,16 @@
 
     'conditions': [
       [ 'OS=="win"', {
+        'variables': {
+          'nwrfcsdk_path': '<!(echo %NWRFCSDK_PATH%)',
+        },
+        'conditions': [
+          ['nwrfcsdk_path==""', {
+            'variables': {
+              'nwrfcsdk_path': '<(module_root_dir)/nwrfcsdk',
+            }
+          }]
+        ],
         'defines': [
           'PLATFORM="win32"',
           'WIN32',
@@ -106,6 +115,16 @@
       }],
 
       [ 'OS=="linux"', {
+        'variables': {
+          'nwrfcsdk_path': '<!(echo $NWRFCSDK_PATH)',
+        },
+        'conditions': [
+          ['nwrfcsdk_path==""', {
+            'variables': {
+              'nwrfcsdk_path': '<(module_root_dir)/nwrfcsdk',
+            }
+          }]
+        ],
         'cflags!': [
           '-Wall',
           '-pedantic'
