@@ -266,6 +266,9 @@ Attributes with the prefix *sap* are specific to this JSON Schema instance.
 
 ## Changelog
 
+### 0.2.0 (2015-11-08)
+- RAW fields and XSTRINGs return/expect node Buffers
+
 ### 0.1.7 (2015-11-01)
 - Add gulp script for bulk compiling
 
@@ -293,7 +296,7 @@ Attributes with the prefix *sap* are specific to this JSON Schema instance.
   - RfcIsConnectionHandleValid (aka Connection::IsOpen())
   - RfcRemoveFunctionDesc (invalidate cache)
   - RfcGetPartnerSSOTicket
-- Use of buffers for xstring/byte
+- Use of buffers for xstring
 - Event emission on disconnect
 
 ## License
