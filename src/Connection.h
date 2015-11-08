@@ -52,6 +52,7 @@ class Connection : public node::ObjectWrap
     static NAN_METHOD(Ping);
     static NAN_METHOD(Lookup);
     static NAN_METHOD(IsOpen);
+    static NAN_METHOD(SetIniPath);
 
     static void EIO_Open(uv_work_t *req);
     static void EIO_AfterOpen(uv_work_t *req);
