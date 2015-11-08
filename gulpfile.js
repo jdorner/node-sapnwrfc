@@ -57,7 +57,7 @@ gulp.task('test', function (cb) {
 
   // Run only specific tests if we are on a CI server
   if (process.env.CI) {
-    mochaOptions.grep = '.*\ [ci\]';
+    mochaOptions.grep = '.*?[\[]ci].*';
   }
 
   return gulp.src('tests/*', { read: false }).pipe(mocha(mochaOptions));
