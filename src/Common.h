@@ -39,7 +39,7 @@ SOFTWARE.
 
 typedef DATA_CONTAINER_HANDLE CHND;
 
-static std::string convertToString(v8::Handle<v8::Value> const &str)
+static std::string convertToString(v8::Local<v8::Value> const &str)
 {
   Nan::HandleScope scope;
   static const std::string emptyString;
@@ -61,7 +61,7 @@ static std::string convertToString(const SAP_UC *str)
   return convertToString(utf16String);
 }
 
-static SAP_UC* convertToSAPUC(v8::Handle<v8::Value> const &str) {
+static SAP_UC* convertToSAPUC(v8::Local<v8::Value> const &str) {
   RFC_RC rc;
   RFC_ERROR_INFO errorInfo;
   const char *cStr;
@@ -133,7 +133,7 @@ static v8::Local<v8::Value> RfcError(const RFC_ERROR_INFO &info)
   return scope.Escape(obj);
 }
 
-static v8::Handle<v8::Value> RfcError(const char* message, v8::Handle<v8::Value> value)
+static v8::Local<v8::Value> RfcError(const char* message, v8::Local<v8::Value> value)
 {
   v8::Local<v8::String> leftSide = Nan::New<v8::String>(message).ToLocalChecked();
   v8::Local<v8::String> exceptionString = v8::String::Concat(leftSide, value->ToString());
@@ -147,7 +147,7 @@ static v8::Local<v8::Value> RfcError(const char *message, const SAP_UC *sapName)
     return RfcError(message, name);
 }
 
-static bool IsException(v8::Handle<v8::Value> value)
+static bool IsException(v8::Local<v8::Value> value)
 {
   return value->IsNativeError();
 }
