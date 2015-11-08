@@ -77,6 +77,7 @@ NAN_MODULE_INIT(Connection::Init)
   Nan::SetPrototypeMethod(ctorTemplate, "Ping", Connection::Ping);
   Nan::SetPrototypeMethod(ctorTemplate, "IsOpen", Connection::IsOpen);
   Nan::SetPrototypeMethod(ctorTemplate, "Lookup", Connection::Lookup);
+  Nan::SetPrototypeMethod(ctorTemplate, "SetIniPath", Connection::SetIniPath);
 
   Nan::Set(target, Nan::New("Connection").ToLocalChecked(), ctorTemplate->GetFunction());
 }
@@ -286,4 +287,36 @@ NAN_METHOD(Connection::Lookup)
 
   v8::Local<v8::Value> f = Function::NewInstance(*self, info);
   info.GetReturnValue().Set(f);
+}
+
+/**
+ *
+ * @return true if successful, else: RfcException
+ */
+NAN_METHOD(Connection::SetIniPath)
+{
+  RFC_RC rc = RFC_OK;
+  RFC_ERROR_INFO errorInfo;
+  int isValid;
+
+  Connection *self = node::ObjectWrap::Unwrap<Connection>(info.This());
+
+  if (info.Length() != 1) {
+    THROW_V8_EXCEPTION("Function expects 1 argument");
+    return;
+  }
+  if (!info[0]->IsString()) {
+    THROW_V8_EXCEPTION("Argument 1 must be a path name");
+    return;
+  }
+
+  v8::Local<v8::Value> iniPath = info[0]->ToString();
+
+  rc = RfcSetIniPath(convertToSAPUC(iniPath), &errorInfo);
+  if (rc) {
+    THROW_V8_EXCEPTION(RfcError(errorInfo));
+    return;
+  }
+
+  info.GetReturnValue().Set(Nan::True());
 }

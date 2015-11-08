@@ -68,6 +68,19 @@ var conParams = {
 };
 ```
 
+## Set path to sapnwrfc.ini
+
+Befor you open a connection you can set the directory path to look for the `sapnwrfc.ini` file.
+
+Example:
+
+```js
+var con = new sapnwrfc.Connection;
+var iniPath = '/path/to/dir/with/inifile/in/it'
+
+con.SetIniPath(iniPath);
+```
+
 ## Opening the connection
 
 Before you can invoke a remote function, you will have to open a connection to the SAP system.
