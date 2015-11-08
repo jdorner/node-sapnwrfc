@@ -3,7 +3,7 @@ var mocha = require('mocha');
 var should = require('should');
 var sapnwrfc = require('../sapnwrfc');
 
-describe('SetIniPath', function () {
+describe('SetIniPath [ci]', function () {
   var con = undefined;
 
   before(function() {
