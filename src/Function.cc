@@ -305,13 +305,13 @@ void Function::EIO_AfterInvoke(uv_work_t *req)
 
   if (baton->errorInfo.code != RFC_OK) {
     argv[0] = RfcError(baton->errorInfo);
+  }
+  
+  v8::Local<v8::Value> result = baton->function->DoReceive(baton->functionHandle);
+  if (IsException(result)) {
+    argv[0] = result;
   } else {
-    v8::Local<v8::Value> result = baton->function->DoReceive(baton->functionHandle);
-    if (IsException(result)) {
-      argv[0] = result;
-    } else {
-      argv[1] = result;
-    }
+    argv[1] = result;
   }
 
   if (baton->functionHandle) {
