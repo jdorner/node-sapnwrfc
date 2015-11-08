@@ -34,7 +34,7 @@ dependencies:
 test:
   override:
     - gulp build
-    - cp -R compiled/*/linux/x64 ${CIRCLE_ARTIFACTS}
+    - cp -R compiled ${CIRCLE_ARTIFACTS}
     - rm -rf build
     - npm test
 
