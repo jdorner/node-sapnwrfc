@@ -302,11 +302,11 @@ NAN_METHOD(Connection::SetIniPath)
   Connection *self = node::ObjectWrap::Unwrap<Connection>(info.This());
 
   if (info.Length() != 1) {
-    THROW_V8_EXCEPTION("Function expects 1 argument");
+    Nan::ThrowError("Function expects 1 argument");
     return;
   }
   if (!info[0]->IsString()) {
-    THROW_V8_EXCEPTION("Argument 1 must be a path name");
+    Nan::ThrowError("Argument 1 must be a path name");
     return;
   }
 
@@ -314,7 +314,7 @@ NAN_METHOD(Connection::SetIniPath)
 
   rc = RfcSetIniPath(convertToSAPUC(iniPath), &errorInfo);
   if (rc) {
-    THROW_V8_EXCEPTION(RfcError(errorInfo));
+    Nan::ThrowError(RfcError(errorInfo));
     return;
   }
 
