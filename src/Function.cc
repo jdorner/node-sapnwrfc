@@ -558,16 +558,14 @@ v8::Local<v8::Value> Function::XStringToExternal(const CHND container, const SAP
   RFC_RC rc = RFC_OK;
   RFC_ERROR_INFO errorInfo;
 
-  if (!value->IsString()) {
+  if (!node::Buffer::HasInstance(value)) {
     return RfcError("Argument has unexpected type: ", name);
   }
 
-  Nan::Utf8String val(value->ToString());
-  if (*val == nullptr) {
-    return RfcError("XString conversion failed: ", name);
-  }
+  unsigned int bufferLength = node::Buffer::Length(value);
+  SAP_RAW* bufferData = reinterpret_cast<SAP_RAW*>(node::Buffer::Data(value));
 
-  rc = RfcSetXString(container, name, reinterpret_cast<SAP_RAW*>(*val), val.length(), &errorInfo);
+  rc = RfcSetXString(container, name, bufferData, bufferLength, &errorInfo);
   if (rc != RFC_OK) {
     return RfcError(errorInfo);
   }
@@ -1007,9 +1005,7 @@ v8::Local<v8::Value> Function::XStringToInternal(const CHND container, const SAP
     return RfcError(errorInfo);
   }
 
-  v8::Local<v8::String> value = Nan::New<v8::String>(reinterpret_cast<char*>(buffer), strLen).ToLocalChecked();
-
-  free(buffer);
+  v8::Local<v8::Value> value = Nan::NewBuffer(reinterpret_cast<char*>(buffer), strLen).ToLocalChecked();
 
   return scope.Escape(value);
 }
