@@ -70,7 +70,7 @@ var conParams = {
 
 ## Set path to sapnwrfc.ini
 
-Befor you open a connection you can set the directory path to look for the `sapnwrfc.ini` file.
+Before you open a connection you can set the directory path to look for the `sapnwrfc.ini` file.
 
 Example:
 
