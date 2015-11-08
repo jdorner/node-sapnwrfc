@@ -170,7 +170,7 @@ NAN_METHOD(Function::Invoke)
         case RFC_IMPORT:
         case RFC_CHANGING:
         case RFC_TABLES:
-          result = self->SetParameter(baton->functionHandle, parmDesc, inputParm->Get(parmName));
+          result = self->SetValue(baton->functionHandle, parmDesc.type, parmDesc.name, parmDesc.nucLength, inputParm->Get(parmName));
           break;
         case RFC_EXPORT:
         default:
@@ -362,7 +362,7 @@ v8::Local<v8::Value> Function::DoReceive(const CHND container)
       case RFC_CHANGING:
       case RFC_TABLES:
       case RFC_EXPORT:
-        parmValue = this->GetParameter(container, parmDesc);
+        parmValue = this->GetValue(container, parmDesc.type, parmDesc.name, parmDesc.nucLength);
         if (IsException(parmValue)) {
           return parmValue;
         }
@@ -375,18 +375,6 @@ v8::Local<v8::Value> Function::DoReceive(const CHND container)
   }
 
   return scope.Escape(result);
-}
-
-v8::Local<v8::Value> Function::SetParameter(const CHND container, RFC_PARAMETER_DESC &desc, v8::Local<v8::Value> value)
-{
-  Nan::EscapableHandleScope scope;
-  return scope.Escape(this->SetValue(container, desc.type, desc.name, desc.nucLength, value));
-}
-
-v8::Local<v8::Value> Function::SetField(const CHND container, RFC_FIELD_DESC &desc, v8::Local<v8::Value> value)
-{
-  Nan::EscapableHandleScope scope;
-  return scope.Escape(this->SetValue(container, desc.type, desc.name, desc.nucLength, value));
 }
 
 v8::Local<v8::Value> Function::SetValue(const CHND container, RFCTYPE type, const SAP_UC *name, unsigned len, v8::Local<v8::Value> value)
@@ -500,7 +488,7 @@ v8::Local<v8::Value> Function::StructureToExternal(const CHND container, const R
     v8::Local<v8::String> fieldName = Nan::New<v8::String>((const uint16_t*)(fieldDesc.name)).ToLocalChecked();
 
     if (valueObj->Has(fieldName)) {
-      v8::Local<v8::Value> result = this->SetField(struc, fieldDesc, valueObj->Get(fieldName));
+      v8::Local<v8::Value> result = this->SetValue(struc, fieldDesc.type, fieldDesc.name, fieldDesc.nucLength, valueObj->Get(fieldName));
       // Bail out on exception
       if (IsException(result)) {
         return scope.Escape(result);
@@ -639,20 +627,18 @@ v8::Local<v8::Value> Function::ByteToExternal(const CHND container, const SAP_UC
   RFC_RC rc = RFC_OK;
   RFC_ERROR_INFO errorInfo;
 
-  if (!value->IsString()) {
+  if (!node::Buffer::HasInstance(value)) {
     return RfcError("Argument has unexpected type: ", name);
   }
 
-  Nan::Utf8String val(value->ToString());
-  if (*val == nullptr) {
-    return RfcError("Byte conversion failed: ", name);
-  }
-
-  if (val.length() < 0 || (static_cast<unsigned int>(val.length())) > len) {
+  unsigned int bufferLength = node::Buffer::Length(value);
+  if (bufferLength > len) {
     return RfcError("Argument exceeds maximum length: ", name);
   }
 
-  rc = RfcSetBytes(container, name, reinterpret_cast<SAP_RAW*>(*val), len, &errorInfo);
+  SAP_RAW* bufferData = reinterpret_cast<SAP_RAW*>(node::Buffer::Data(value));
+
+  rc = RfcSetBytes(container, name, bufferData, len, &errorInfo);
   if (rc != RFC_OK) {
     return RfcError(errorInfo);
   }
@@ -814,18 +800,6 @@ v8::Local<v8::Value> Function::BCDToExternal(const CHND container, const SAP_UC 
   return scope.Escape(Nan::Null());
 }
 
-v8::Local<v8::Value> Function::GetParameter(const CHND container, const RFC_PARAMETER_DESC &desc)
-{
-  Nan::EscapableHandleScope scope;
-  return scope.Escape(this->GetValue(container, desc.type, desc.name, desc.nucLength));
-}
-
-v8::Local<v8::Value> Function::GetField(const CHND container, const RFC_FIELD_DESC &desc)
-{
-  Nan::EscapableHandleScope scope;
-  return scope.Escape(this->GetValue(container, desc.type, desc.name, desc.nucLength));
-}
-
 v8::Local<v8::Value> Function::GetValue(const CHND container, RFCTYPE type, const SAP_UC *name, unsigned len)
 {
   Nan::EscapableHandleScope scope;
@@ -926,7 +900,7 @@ v8::Local<v8::Value> Function::StructureToInternal(const CHND container, const R
       return RfcError(errorInfo);
     }
 
-    v8::Local<v8::Value> value = this->GetField(struc, fieldDesc);
+    v8::Local<v8::Value> value = this->GetValue(struc, fieldDesc.type, fieldDesc.name, fieldDesc.nucLength);
     // Bail out on exception
     if (IsException(value)) {
       return scope.Escape(value);
@@ -1099,9 +1073,7 @@ v8::Local<v8::Value> Function::ByteToInternal(const CHND container, const SAP_UC
     return RfcError(errorInfo);
   }
 
-  v8::Local<v8::String> value = Nan::New<v8::String>(reinterpret_cast<const char*>(buffer)).ToLocalChecked();
-
-  free(buffer);
+  v8::Local<v8::Value> value = Nan::NewBuffer(reinterpret_cast<char*>(buffer), len).ToLocalChecked();
 
   return scope.Escape(value);
 }

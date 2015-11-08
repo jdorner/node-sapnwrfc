@@ -51,8 +51,6 @@ class Function : public node::ObjectWrap
 
   v8::Local<v8::Value> DoReceive(const CHND container);
 
-  v8::Local<v8::Value> SetParameter(const CHND container, RFC_PARAMETER_DESC &desc, v8::Local<v8::Value> value);
-  v8::Local<v8::Value> SetField(const CHND container, RFC_FIELD_DESC &desc, v8::Local<v8::Value> value);
   v8::Local<v8::Value> SetValue(const CHND container, RFCTYPE type, const SAP_UC *name, unsigned len, v8::Local<v8::Value> value);
   v8::Local<v8::Value> StructureToExternal(const CHND container, const SAP_UC *name, v8::Local<v8::Value> value);
   v8::Local<v8::Value> StructureToExternal(const CHND container, const RFC_STRUCTURE_HANDLE struc, v8::Local<v8::Value>);
@@ -70,8 +68,6 @@ class Function : public node::ObjectWrap
   v8::Local<v8::Value> DateToExternal(const CHND container, const SAP_UC *name, v8::Local<v8::Value> value);
   v8::Local<v8::Value> BCDToExternal(const CHND container, const SAP_UC *name, v8::Local<v8::Value> value);
 
-  v8::Local<v8::Value> GetParameter(const CHND container, const RFC_PARAMETER_DESC &desc);
-  v8::Local<v8::Value> GetField(const CHND container, const RFC_FIELD_DESC &desc);
   v8::Local<v8::Value> GetValue(const CHND container, RFCTYPE type, const SAP_UC *name, unsigned len);
   v8::Local<v8::Value> StructureToInternal(const CHND container, const SAP_UC *name);
   v8::Local<v8::Value> StructureToInternal(const CHND container, const RFC_STRUCTURE_HANDLE struc);
