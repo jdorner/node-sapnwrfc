@@ -53,7 +53,14 @@ gulp.task('run', function (cb) {
 });
 
 gulp.task('test', function (cb) {
-  return gulp.src('tests/*', { read: false }).pipe(mocha());
+  var mochaOptions = {};
+
+  // Run only specific tests if we are on a CI server
+  if (process.env.CI) {
+    mochaOptions.grep = '.*\ [ci\]';
+  }
+
+  return gulp.src('tests/*', { read: false }).pipe(mocha(mochaOptions));
 });
 
 gulp.task('build', ['prepareBuild'], function (cb) {
