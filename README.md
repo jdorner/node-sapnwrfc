@@ -173,6 +173,25 @@ func.Invoke(params, function(err, result) {
 });
 ```
 
+### Binary data
+
+SAP data types like XSTRING and RAW need some special treatment as JavaScript does not support binary data very well. In order to safely pass
+binary data back and forth, you will have to use [Node Buffers](https://nodejs.org/api/buffer.html). This, of course, also holds true for binary
+data types used within structures and tables.
+
+Example:
+
+```js
+
+var func = con.Lookup('STFC_XSTRING');
+var params = { QUESTION: new Buffer('00FF65', 'hex') };
+
+func.Invoke(params, function (err, result) {
+  console.log(result); // => <Buffer de ad>
+});
+
+```
+
 ### Structures
 
 Structures are represented by JavaScriptObjects, where each field corresponds to a member property.
@@ -277,10 +296,26 @@ Attributes with the prefix *sap* are specific to this JSON Schema instance.
 - **sapDirection:** Attribute of the first level of properties. RFC_IMPORT | RFC_EXPORT | RFC_CHANGING | RFC_TABLES
 - **sapTypeName:** Name of a structure or name of a structure of a table.
 
+
+## Contributors
+- Alfred Gebert
+- Stefan Scherer
+- Michael Scherer
+- Szilard Novaki
+- Jakub Zakrzewski
+- Alex
+- LeandroDG
+
 ## Changelog
 
-### 0.2.0 (2015-11-08)
+### 0.2.0 (2015-11-11)
+- Add SetIniPath
 - RAW fields and XSTRINGs return/expect node Buffers
+
+### 0.1.8 (2015-11-02)
+- Automatic builds for Linux and Windows
+- Add tests
+- Bugfixes
 
 ### 0.1.7 (2015-11-01)
 - Add gulp script for bulk compiling
