@@ -5,7 +5,7 @@ machine:
     SAPNWRFC_HOME: /home/ubuntu/node-sapnwrfc/nwrfcsdk
     NODE_VERSION: 4.2.1
     SAPCAR: SAPCAR_0-80000935.EXE
-    NWRFC: NWRFC_36-20004565.SAR
+    NWRFC: NWRFC_38-20004565.SAR
 
   node:
     version: $NODE_VERSION
@@ -22,7 +22,7 @@ dependencies:
   pre:
     - mkdir -p cache
     - if [[ ! -e cache/${SAPCAR} ]]; then curl -L -u "${SAPNWRFC_CRED}" -o cache/${SAPCAR} "https://smpdla.sap.com/00000674/280/SAPCAR_0-80000935.EXE?object_id=012002523100006088652015D&filepath=00000674%5c280%5cSAPCAR_0-80000935%2eEXE&uid=S0015138022&LOC=FRA&iesfx=.exe"; fi
-    - if [[ ! -e cache/${NWRFC} ]]; then curl -L -u "${SAPNWRFC_CRED}" -o cache/${NWRFC} "https://smpdl.sap-ag.de/~swdc/012002523100013831902015D/NWRFC_36-20004565.SAR?_ACTION=DL_DIRECT"; fi
+    - if [[ ! -e cache/${NWRFC} ]]; then curl -L -u "${SAPNWRFC_CRED}" -o cache/${NWRFC} "https://smpdl.sap-ag.de/~swdc/002007974700000498452015D/NWRFC_38-20004565.SAR?_ACTION=DL_DIRECT"; fi
     - cp cache/${SAPCAR} .
     - cp cache/${NWRFC} .
     - chmod +x ${SAPCAR}
