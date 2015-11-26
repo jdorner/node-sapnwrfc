@@ -23,14 +23,16 @@ platform:
 matrix:
   fast_finish: true
 
+
+
 install:
   - git checkout %APPVEYOR_REPO_BRANCH%
   - ps: Install-Product node $env:nodejs_version $env:platform
   - ps: choco install -y curl
   - if not defined SAPNWRFC_CRED ( exit 1 )
   - curl -L -u %SAPNWRFC_CRED% -o SAPCAR_0-80000938.EXE "https://smpdla.sap.com/00000674/279/SAPCAR_0-80000938.EXE?object_id=012002523100006086842015D&filepath=00000674%%%%5c279%%%%5cSAPCAR_0-80000938%%%%2eEXE&uid=S0015138022&LOC=FRA&iesfx=.exe"
-  - curl -L -u %SAPNWRFC_CRED% -o NWRFC_36-20004568.SAR "https://smpdl.sap-ag.de/~swdc/012002523100013832132015D/NWRFC_36-20004568.SAR?_ACTION=DL_DIRECT"
-  - .\SAPCAR_0-80000938.EXE -xvf NWRFC_36-20004568.SAR
+  - curl -L -u %SAPNWRFC_CRED% -o NWRFC_38-20004568.SAR "https://smpdl.sap-ag.de/~swdc/002007974700000498442015D/NWRFC_38-20004568.SAR?_ACTION=DL_DIRECT"
+  - .\SAPCAR_0-80000938.EXE -xvf NWRFC_38-20004568.SAR
 
 build_script:
   - set PATH=%PATH%;%SAPNWRFC_HOME%\lib
