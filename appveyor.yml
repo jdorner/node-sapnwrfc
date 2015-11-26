@@ -23,8 +23,6 @@ platform:
 matrix:
   fast_finish: true
 
-
-
 install:
   - git checkout %APPVEYOR_REPO_BRANCH%
   - ps: Install-Product node $env:nodejs_version $env:platform
