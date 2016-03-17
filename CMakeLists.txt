@@ -13,10 +13,13 @@ add_definitions(-D__NO_MATH_INLINES)
 
 link_directories(${NODE_ROOT}/lib)
 include_directories(${NODE_ROOT}/include/node)
+include_directories(${NODE_ROOT}/src)
+include_directories(${NODE_ROOT}/deps/v8/include)
 
 include_directories(
    "${CMAKE_CURRENT_SOURCE_DIR}"
    ${PROJECT_SOURCE_DIR}/nwrfcsdk/include
+   ${PROJECT_SOURCE_DIR}/node_modules/nan
 )
 
 link_directories(
@@ -25,7 +28,10 @@ link_directories(
 
 set(Sources
 src/binding.cc
+src/current_function.hpp
 src/Common.h
+src/Loggable.h
+src/Loggable.cc
 src/Connection.h
 src/Connection.cc
 src/Function.h

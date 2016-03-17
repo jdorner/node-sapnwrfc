@@ -9,7 +9,10 @@
   'targets': [{
     'sources': [
       'src/binding.cc',
+      'src/current_function.hpp',
       'src/Common.h',
+      'src/Loggable.h',
+      'src/Loggable.cc',
       'src/Connection.h',
       'src/Connection.cc',
       'src/Function.h',

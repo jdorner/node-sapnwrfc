@@ -60,6 +60,8 @@ NAN_METHOD(Connection::New)
   Connection *self = new Connection();
   self->Wrap(info.This());
 
+  self->log(Levels::SILLY, "Connection object created");
+
   info.GetReturnValue().Set(info.This());
 }
 
@@ -103,6 +105,8 @@ NAN_METHOD(Connection::Open)
 {
   Connection *self = node::ObjectWrap::Unwrap<Connection>(info.This());
 
+  self->log(Levels::VERBOSE, "opening new SAP connection");
+
   if (info.Length() < 2) {
     Nan::ThrowError("Function expects 2 arguments");
     return;
@@ -123,6 +127,8 @@ NAN_METHOD(Connection::Open)
   self->loginParams = static_cast<RFC_CONNECTION_PARAMETER*>(malloc(self->loginParamsSize * sizeof(RFC_CONNECTION_PARAMETER)));
   memset(self->loginParams, 0, self->loginParamsSize * sizeof(RFC_CONNECTION_PARAMETER));
   memset(&self->errorInfo, 0, sizeof(RFC_ERROR_INFO));
+
+  self->log(Levels::DBG, "Connection params", optionsObj);
 
   for (unsigned int i = 0; i < self->loginParamsSize; i++) {
     v8::Local<v8::Value> name = props->Get(i);
@@ -153,12 +159,12 @@ void Connection::EIO_Open(uv_work_t *req)
   Connection *self = static_cast<Connection*>(req->data);
 
   self->connectionHandle = RfcOpenConnection(self->loginParams, self->loginParamsSize, &self->errorInfo);
+  DEFER_LOG_API(self, "RfcOpenConnection");
 }
 
 void Connection::EIO_AfterOpen(uv_work_t *req)
 {
   Nan::HandleScope scope;
-  RFC_ERROR_INFO errorInfo;
   int isValid;
   Connection *self = static_cast<Connection*>(req->data);
 
@@ -166,23 +172,31 @@ void Connection::EIO_AfterOpen(uv_work_t *req)
   argv[0] = Nan::Null();
 
   if (self->connectionHandle == nullptr) {
+    self->log(Levels::DBG, "Connection handle is NULL, connection failed");
     argv[0] = RfcError(self->errorInfo);
   } else {
-    RfcIsConnectionHandleValid(self->connectionHandle, &isValid, &errorInfo);
+    RfcIsConnectionHandleValid(self->connectionHandle, &isValid, &self->errorInfo);
+    LOG_API(self, "RfcIsConnectionHandleValid");
     if (!isValid) {
-      argv[0] = RfcError(errorInfo);
+      self->log(Levels::SILLY, "Connection not valid");
+      argv[0] = RfcError(self->errorInfo);
+    } else {
+      self->log(Levels::SILLY, "Connection still valid");
     }
   }
 
   Nan::TryCatch try_catch;
 
+  self->log(Levels::SILLY, "EIO_AfterOpen: About to call the callback");
   assert(!self->cbOpen->IsEmpty());
   self->cbOpen->Call(1, argv);
   delete self->cbOpen;
   self->cbOpen = nullptr;
   self->Unref();
+  self->log(Levels::SILLY, "EIO_AfterOpen: Finished callback");
 
   if (try_catch.HasCaught()) {
+    self->log(Levels::ERR, "EIO_AfterOpen: Exception thrown in callback. Abort.");
     Nan::FatalException(try_catch);
   }
 }
@@ -190,6 +204,7 @@ void Connection::EIO_AfterOpen(uv_work_t *req)
 NAN_METHOD(Connection::Close)
 {
   Connection *self = node::ObjectWrap::Unwrap<Connection>(info.This());
+  self->log(Levels::SILLY, "Connection::Close");
   info.GetReturnValue().Set(self->CloseConnection());
 }
 
@@ -197,11 +212,14 @@ v8::Local<v8::Value> Connection::CloseConnection(void)
 {
   Nan::EscapableHandleScope scope;
   RFC_RC rc = RFC_OK;
-  RFC_ERROR_INFO errorInfo;
+
+  log(Levels::SILLY, "Connection::CloseConnection");
 
   if (this->connectionHandle != nullptr) {
     rc = RfcCloseConnection(this->connectionHandle, &errorInfo);
+    LOG_API(this, "RfcCloseConnection");
     if (rc != RFC_OK) {
+      log(Levels::DBG, "Connection::CloseConnection: Error closing connection");
       scope.Escape(RfcError(errorInfo));
     }
   }
@@ -228,11 +246,20 @@ NAN_METHOD(Connection::IsOpen)
 {
   Connection *self = node::ObjectWrap::Unwrap<Connection>(info.This());
   RFC_RC rc = RFC_OK;
-  RFC_ERROR_INFO errorInfo;
   int isValid;
 
-  rc = RfcIsConnectionHandleValid(self->connectionHandle, &isValid, &errorInfo);
-  info.GetReturnValue().Set(isValid ? Nan::True() : Nan::False());
+  self->log(Levels::SILLY, "Connection::IsOpen");
+
+  rc = RfcIsConnectionHandleValid(self->connectionHandle, &isValid, &self->errorInfo);
+  LOG_API(self, "RfcIsConnectionHandleValid");
+  if(!isValid) {
+    self->log(Levels::SILLY, "Connection::IsOpen: RfcIsConnectionHandleValid returned false");
+    info.GetReturnValue().Set(Nan::False());
+  } else {
+    self->log(Levels::SILLY, "Connection::IsOpen: RfcIsConnectionHandleValid returned true");
+    info.GetReturnValue().Set(Nan::True());
+  }
+
 }
 
 /**
@@ -243,16 +270,18 @@ NAN_METHOD(Connection::Ping)
 {
   Connection *self = node::ObjectWrap::Unwrap<Connection>(info.This());
   RFC_RC rc = RFC_OK;
-  RFC_ERROR_INFO errorInfo;
+
+  self->log(Levels::SILLY, "Connection::IsOpen");
 
   if (info.Length() > 0) {
     Nan::ThrowError("No arguments expected");
     return;
   }
 
-  rc = RfcPing(self->connectionHandle, &errorInfo);
+  rc = RfcPing(self->connectionHandle, &self->errorInfo);
+  LOG_API(self, "RfcPing");
   if (rc != RFC_OK) {
-    RETURN_RFC_ERROR(errorInfo);
+    RETURN_RFC_ERROR(self->errorInfo);
   }
 
   info.GetReturnValue().Set(Nan::True());
@@ -264,11 +293,11 @@ NAN_METHOD(Connection::Ping)
  */
 NAN_METHOD(Connection::Lookup)
 {
-  RFC_RC rc = RFC_OK;
-  RFC_ERROR_INFO errorInfo;
   int isValid;
 
   Connection *self = node::ObjectWrap::Unwrap<Connection>(info.This());
+
+  self->log(Levels::SILLY, "Connection::Lookup");
 
   if (info.Length() != 1) {
     Nan::ThrowError("Function expects 1 argument");
@@ -279,13 +308,21 @@ NAN_METHOD(Connection::Lookup)
     return;
   }
 
-  rc = RfcIsConnectionHandleValid(self->connectionHandle, &isValid, &errorInfo);
+  RfcIsConnectionHandleValid(self->connectionHandle, &isValid, &self->errorInfo);
+  LOG_API(self, "RfcIsConnectionHandleValid");
   if (!isValid) {
-    Nan::ThrowError(RfcError(errorInfo));
+    self->log(Levels::SILLY, "Connection::Lookup: RfcIsConnectionHandleValid returned false");
+    Nan::ThrowError(RfcError(self->errorInfo));
     return;
+  } else {
+    self->log(Levels::SILLY, "Connection::Lookup: RfcIsConnectionHandleValid returned true");
   }
 
+  self->log(Levels::SILLY, "Connection::Lookup: About to create function instance");
   v8::Local<v8::Value> f = Function::NewInstance(*self, info);
+  if( IsException(f)) {
+    self->log(Levels::DBG, "Connection::Lookup: Unable to create function instance");
+  }
   info.GetReturnValue().Set(f);
 }
 
@@ -295,10 +332,9 @@ NAN_METHOD(Connection::Lookup)
  */
 NAN_METHOD(Connection::SetIniPath)
 {
-  RFC_RC rc = RFC_OK;
-  RFC_ERROR_INFO errorInfo;
-  
   Connection *self = node::ObjectWrap::Unwrap<Connection>(info.This());
+
+  self->log(Levels::SILLY, "Connection::SetIniPath");
 
   if (info.Length() != 1) {
     Nan::ThrowError("Function expects 1 argument");
@@ -311,9 +347,11 @@ NAN_METHOD(Connection::SetIniPath)
 
   v8::Local<v8::Value> iniPath = info[0]->ToString();
 
-  rc = RfcSetIniPath(convertToSAPUC(iniPath), &errorInfo);
-  if (rc) {
-    Nan::ThrowError(RfcError(errorInfo));
+  RfcSetIniPath(convertToSAPUC(iniPath), &self->errorInfo);
+  LOG_API(self, "RfcSetIniPath");
+  if (self->errorInfo.code) {
+    self->log(Levels::DBG, "Connection::SetIniPath: RfcSetIniPath failed");
+    Nan::ThrowError(RfcError(self->errorInfo));
     return;
   }
 
