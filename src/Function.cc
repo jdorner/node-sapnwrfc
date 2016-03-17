@@ -48,6 +48,7 @@ NAN_MODULE_INIT(Function::Init)
   Nan::SetPrototypeMethod(ctorTemplate, "MetaData", MetaData);
 
   ctor.Reset(ctorTemplate->GetFunction());
+  Nan::Set(target, Nan::New("Function").ToLocalChecked(), ctorTemplate->GetFunction());
 }
 
 v8::Local<v8::Value> Function::NewInstance(Connection &connection, const Nan::NAN_METHOD_ARGS_TYPE args)
