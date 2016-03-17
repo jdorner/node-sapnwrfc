@@ -44,6 +44,7 @@
           '_CRT_NON_CONFORMING_SWPRINTFS',
           '_CRT_SECURE_NO_DEPRECATE',
           '_CRT_NONSTDC_NO_DEPRECATE',
+          'NOMINMAX',
           'SAPonNT',
           'UNICODE',
           '_UNICODE'

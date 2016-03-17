@@ -25,7 +25,8 @@ SOFTWARE.
 #include "Function.h"
 #include <cassert>
 #include <sstream>
-#include <limits.h>
+#include <limits>
+#include <cstdint>
 
 Nan::Persistent<v8::Function> Function::ctor;
 
@@ -673,7 +674,7 @@ v8::Local<v8::Value> Function::Int1ToExternal(const CHND container, const SAP_UC
     return ESCAPE_RFC_ERROR("Argument has unexpected type: ", name);
   }
   int32_t convertedValue = value->ToInt32()->Value();
-  if ((convertedValue < INT8_MIN) || (convertedValue > INT8_MAX)) {
+  if ((convertedValue < std::numeric_limits<int8_t>::min()) || (convertedValue > std::numeric_limits<int8_t>::max())) {
     return ESCAPE_RFC_ERROR("Argument out of range: ", name);
   }
   RFC_INT1 rfcValue = convertedValue;
@@ -697,7 +698,7 @@ v8::Local<v8::Value> Function::Int2ToExternal(const CHND container, const SAP_UC
   }
 
   int32_t convertedValue = value->ToInt32()->Value();
-  if ((convertedValue < INT16_MIN) || (convertedValue > INT16_MAX)) {
+  if ((convertedValue < std::numeric_limits<int16_t>::min()) || (convertedValue > std::numeric_limits<int16_t>::max())) {
     return ESCAPE_RFC_ERROR("Argument out of range: ", name);
   }
   RFC_INT2 rfcValue = convertedValue;
