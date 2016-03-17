@@ -1346,12 +1346,6 @@ bool Function::addMetaData(const CHND container, v8::Local<v8::Object> &parent,
     return false;
   }
 
-  typeHandle = RfcDescribeType(tableHandle, errorInfo);
-  assert(typeHandle);
-  if (typeHandle == nullptr) {
-    return false;
-  }
-
   rc = RfcGetFieldCount(typeHandle, &fieldCount, errorInfo);
   if (rc != RFC_OK) {
     return false;
