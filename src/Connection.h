@@ -25,15 +25,12 @@ SOFTWARE.
 #ifndef CONNECTION_H_
 #define CONNECTION_H_
 
-#include "Common.h"
-#include <v8.h>
-#include <node.h>
-#include <node_version.h>
+#include "Loggable.h"
 #include <uv.h>
 #include <sapnwrfc.h>
 #include <iostream>
 
-class Connection : public node::ObjectWrap
+class Connection : public Loggable
 {
   friend class Function;
 

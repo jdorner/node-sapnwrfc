@@ -26,13 +26,11 @@ SOFTWARE.
 #define FUNCTION_H_
 
 #include "Common.h"
-#include <node.h>
-#include <v8.h>
-#include <node_version.h>
+#include "Loggable.h"
 #include <sapnwrfc.h>
 #include "Connection.h"
 
-class Function : public node::ObjectWrap
+class Function : public Loggable
 {
   public:
   static NAN_MODULE_INIT(Init);
@@ -86,20 +84,22 @@ class Function : public node::ObjectWrap
   v8::Local<v8::Value> BCDToInternal(const CHND container, const SAP_UC *name);
 
   static std::string mapExternalTypeToJavaScriptType(RFCTYPE sapType);
-  static bool addMetaData(const CHND container, v8::Local<v8::Object>& parent,
-                          const RFC_ABAP_NAME name, RFCTYPE type,
-                          unsigned int length, RFC_DIRECTION direction,
-                          RFC_ERROR_INFO* errorInfo, RFC_PARAMETER_TEXT paramText = nullptr);
+  bool addMetaData(const CHND container, v8::Local<v8::Object>& parent, const RFC_ABAP_NAME name,
+                   RFCTYPE type, unsigned int length, RFC_DIRECTION direction,
+                   RFC_PARAMETER_TEXT paramText = nullptr);
 
   class InvocationBaton
   {
     public:
-    InvocationBaton() : function(nullptr), functionHandle(nullptr) { };
+    InvocationBaton() : function(nullptr), functionHandle(nullptr) { }
     ~InvocationBaton() {
       RFC_ERROR_INFO errorInfo;
 
       if (this->functionHandle) {
         RfcDestroyFunction(this->functionHandle, &errorInfo);
+        if(function) {
+          function->deferLogAPICall("RfcDestroyFunction", __FILE__, BOOST_CURRENT_FUNCTION, __LINE__, errorInfo);
+        }
         this->functionHandle = nullptr;
       }
 
@@ -109,19 +109,19 @@ class Function : public node::ObjectWrap
 
       delete this->cbInvoke;
       this->cbInvoke = nullptr;
-    };
+    }
 
     Function *function;
     Connection *connection;
     RFC_FUNCTION_HANDLE functionHandle;
     Nan::Callback *cbInvoke;
-    RFC_ERROR_INFO errorInfo;
   };
 
   static Nan::Persistent<v8::Function> ctor;
 
   Connection *connection;
   RFC_FUNCTION_DESC_HANDLE functionDescHandle;
+  RFC_ERROR_INFO errorInfo;
 };
 
 #endif /* FUNCTION_H_ */

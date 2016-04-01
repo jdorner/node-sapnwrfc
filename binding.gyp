@@ -9,7 +9,10 @@
   'targets': [{
     'sources': [
       'src/binding.cc',
+      'src/current_function.hpp',
       'src/Common.h',
+      'src/Loggable.h',
+      'src/Loggable.cc',
       'src/Connection.h',
       'src/Connection.cc',
       'src/Function.h',
@@ -44,6 +47,7 @@
           '_CRT_NON_CONFORMING_SWPRINTFS',
           '_CRT_SECURE_NO_DEPRECATE',
           '_CRT_NONSTDC_NO_DEPRECATE',
+          'NOMINMAX',
           'SAPonNT',
           'UNICODE',
           '_UNICODE'
