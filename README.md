@@ -20,7 +20,7 @@ Opening the connection and function invocations are fully/partially asynchronous
 ./SAPCAR_3-20002089.EXE -xf NWRFC_8-20004549.SAR
 cd nwrfcsdk
 cp ./lib/* /usr/lib
-cp ./include/* /usr/inlude
+cp ./include/* /usr/include
 ```
 
 ### Windows
